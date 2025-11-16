@@ -35,6 +35,22 @@ export interface LoginRequest {
   password: string;
 }
 
+export interface LoginResponse {
+  token?: string;
+  user?: {
+    id: number;
+    login: string;
+    role: string;
+    isFirstLogin?: boolean;
+    mfaEnabled?: boolean;
+  };
+  requireMfaSetup?: boolean;
+  requireMfaVerification?: boolean;
+  userId?: number;
+  login?: string;
+  message?: string;
+}
+
 export interface AuthResponse {
   token: string;
   user: {
@@ -42,6 +58,35 @@ export interface AuthResponse {
     login: string;
     role: string;
   };
+}
+
+export interface SetupMfaRequest {
+  userId: number;
+  password: string;
+  publicKey?: string;
+}
+
+export interface SetupMfaResponse {
+  mfaSecret: string;
+  qrCodeUrl: string;
+  message: string;
+}
+
+export interface VerifyMfaRequest {
+  userId: number;
+  totpCode: string;
+}
+
+export interface VerifyMfaResponse {
+  token: string;
+  user: {
+    id: number;
+    login: string;
+    role: string;
+    isFirstLogin: boolean;
+    mfaEnabled: boolean;
+  };
+  message: string;
 }
 
 // Block Types

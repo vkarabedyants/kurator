@@ -2,6 +2,11 @@ import api from '@/lib/api';
 import {
   AuthResponse,
   LoginRequest,
+  LoginResponse,
+  SetupMfaRequest,
+  SetupMfaResponse,
+  VerifyMfaRequest,
+  VerifyMfaResponse,
   PaginatedResponse,
   ContactListItem,
   ContactDetail,
@@ -22,10 +27,16 @@ import {
 // Auth API
 export const authApi = {
   login: (data: LoginRequest) =>
-    api.post<AuthResponse>('/auth/login', data).then(res => res.data),
+    api.post<LoginResponse>('/auth/login', data).then(res => res.data),
 
   register: (data: { login: string; password: string; role: string }) =>
     api.post('/auth/register', data).then(res => res.data),
+
+  setupMfa: (data: SetupMfaRequest) =>
+    api.post<SetupMfaResponse>('/auth/setup-mfa', data).then(res => res.data),
+
+  verifyMfa: (data: VerifyMfaRequest) =>
+    api.post<VerifyMfaResponse>('/auth/verify-mfa', data).then(res => res.data),
 
   logout: () =>
     api.post('/auth/logout').then(res => res.data),

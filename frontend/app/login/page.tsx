@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import api from '@/lib/api';
-import type { LoginRequest, LoginResponse } from '@/types';
+import { authApi } from '@/services/api';
+import type { LoginRequest } from '@/types/api';
 
 export default function LoginPage() {
   const [login, setLogin] = useState('');
@@ -18,15 +18,40 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const response = await api.post<LoginResponse>('/auth/login', {
+      const response = await authApi.login({
         login,
         password,
       } as LoginRequest);
 
-      localStorage.setItem('token', response.data.token);
-      localStorage.setItem('user', JSON.stringify(response.data.user));
-      
-      router.push('/dashboard');
+      // Проверяем, требуется ли настройка MFA
+      if (response.requireMfaSetup) {
+        localStorage.setItem('pendingMfaSetup', JSON.stringify({
+          userId: response.userId,
+          login: response.login || login,
+          password: password
+        }));
+        router.push('/mfa/setup');
+        return;
+      }
+
+      // Проверяем, требуется ли верификация MFA
+      if (response.requireMfaVerification) {
+        localStorage.setItem('pendingMfaVerification', JSON.stringify({
+          userId: response.userId,
+          login: response.login || login
+        }));
+        router.push('/mfa/verify');
+        return;
+      }
+
+      // Обычный вход без MFA (если token есть)
+      if (response.token && response.user) {
+        localStorage.setItem('token', response.token);
+        localStorage.setItem('user', JSON.stringify(response.user));
+        router.push('/dashboard');
+      } else {
+        setError('Неожиданный ответ сервера');
+      }
     } catch (err: any) {
       setError(err.response?.data?.message || 'Ошибка входа');
     } finally {
