@@ -1,0 +1,67 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: kurator-db
+    environment:
+      POSTGRES_DB: kurator
+      POSTGRES_USER: ${DB_USER:-kurator_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-change_me_in_production}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - kurator-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-kurator_user}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Kurator.Api/Dockerfile
+    container_name: kurator-api
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
+      ConnectionStrings__DefaultConnection: "Host=postgres;Database=kurator;Username=${DB_USER:-kurator_user};Password=${DB_PASSWORD:-change_me_in_production}"
+      JwtSettings__Secret: ${JWT_SECRET:-your_very_long_secret_key_change_in_production}
+      JwtSettings__Issuer: "Kurator"
+      JwtSettings__Audience: "Kurator"
+      JwtSettings__ExpiryMinutes: 480
+      Encryption__Key: ${ENCRYPTION_KEY:-your_encryption_key_32_bytes_min}
+    ports:
+      - "5000:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - kurator-network
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: kurator-frontend
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:5000/api
+      NODE_ENV: production
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - kurator-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+
+networks:
+  kurator-network:
+    driver: bridge

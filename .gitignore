@@ -1,0 +1,84 @@
+## Backend (.NET)
+
+# Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Ww][Ii][Nn]32/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Rider
+.idea/
+*.sln.iml
+
+# User-specific files
+*.rsuser
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Logs
+logs/
+*.log
+
+## Frontend (Next.js)
+
+# Dependencies
+/frontend/node_modules
+/frontend/.pnp
+/frontend/.pnp.js
+
+# Testing
+/frontend/coverage
+
+# Next.js
+/frontend/.next/
+/frontend/out/
+
+# Production
+/frontend/build
+
+# Misc
+/frontend/.DS_Store
+/frontend/*.pem
+
+# Debug
+/frontend/npm-debug.log*
+/frontend/yarn-debug.log*
+/frontend/yarn-error.log*
+
+# Local env files
+.env
+.env*.local
+
+# Vercel
+.vercel
+
+# TypeScript
+*.tsbuildinfo
+/frontend/next-env.d.ts
+
+## Docker
+docker-compose.override.yml
+
+## Database
+*.db
+*.db-shm
+*.db-wal
