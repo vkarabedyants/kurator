@@ -2,3 +2,5 @@
 test-results/
 playwright-report/
 playwright/.cache/
+# Authentication state files (generated during test runs)
+.auth/

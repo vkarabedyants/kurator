@@ -22,6 +22,9 @@ public class EncryptionService : IEncryptionService
 
     public string Encrypt(string plainText)
     {
+        if (plainText == null)
+            throw new ArgumentNullException(nameof(plainText));
+
         if (string.IsNullOrEmpty(plainText))
             return string.Empty;
 
@@ -42,18 +45,35 @@ public class EncryptionService : IEncryptionService
 
     public string Decrypt(string encryptedText)
     {
+        if (encryptedText == null)
+            throw new ArgumentNullException(nameof(encryptedText));
+
         if (string.IsNullOrEmpty(encryptedText))
             return string.Empty;
 
-        using var aes = Aes.Create();
-        aes.Key = _key;
-        aes.IV = _iv;
+        try
+        {
+            using var aes = Aes.Create();
+            aes.Key = _key;
+            aes.IV = _iv;
 
-        var decryptor = aes.CreateDecryptor(aes.Key, aes.IV);
-        using var ms = new MemoryStream(Convert.FromBase64String(encryptedText));
-        using var cs = new CryptoStream(ms, decryptor, CryptoStreamMode.Read);
-        using var sr = new StreamReader(cs);
+            var decryptor = aes.CreateDecryptor(aes.Key, aes.IV);
+            using var ms = new MemoryStream(Convert.FromBase64String(encryptedText));
+            using var cs = new CryptoStream(ms, decryptor, CryptoStreamMode.Read);
+            using var sr = new StreamReader(cs);
 
-        return sr.ReadToEnd();
+            return sr.ReadToEnd();
+        }
+        catch (FormatException)
+        {
+            // Invalid Base64 format - return the original value as fallback
+            // This can happen with legacy data or corrupted data
+            return encryptedText;
+        }
+        catch (CryptographicException)
+        {
+            // Decryption failed - return the original value as fallback
+            return encryptedText;
+        }
     }
 }

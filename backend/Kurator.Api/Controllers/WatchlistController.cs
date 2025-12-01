@@ -179,6 +179,10 @@ public class WatchlistController : ControllerBase
         if (watchlistItem == null)
             return NotFound();
 
+        // Track risk level change for history
+        var oldRiskLevel = watchlistItem.RiskLevel;
+        var riskLevelChanged = oldRiskLevel != request.RiskLevel;
+
         // ИЗМЕНЕНО: UpdatedBy - int
         watchlistItem.RoleStatus = request.RoleStatus;
         watchlistItem.RiskSphereId = request.RiskSphereId;
@@ -193,6 +197,24 @@ public class WatchlistController : ControllerBase
         watchlistItem.AttachmentsJson = request.AttachmentsJson;
         watchlistItem.UpdatedAt = DateTime.UtcNow;
         watchlistItem.UpdatedBy = userId;
+
+        // Create history record if risk level changed
+        if (riskLevelChanged)
+        {
+            var history = new WatchlistHistory
+            {
+                WatchlistId = id,
+                OldRiskLevel = oldRiskLevel,
+                NewRiskLevel = request.RiskLevel,
+                ChangedBy = userId,
+                ChangedAt = DateTime.UtcNow,
+                Comment = $"Risk level changed from {oldRiskLevel} to {request.RiskLevel}"
+            };
+            _context.Set<WatchlistHistory>().Add(history);
+
+            _logger.LogInformation("Watchlist item {Id} risk level changed from {OldLevel} to {NewLevel} by user {UserId}",
+                id, oldRiskLevel, request.RiskLevel, userId);
+        }
 
         await _context.SaveChangesAsync();
 
@@ -210,6 +232,7 @@ public class WatchlistController : ControllerBase
         if (watchlistItem == null)
             return NotFound();
 
+        var oldRiskLevel = watchlistItem.RiskLevel;
         watchlistItem.LastCheckDate = DateTime.UtcNow;
         watchlistItem.NextCheckDate = request.NextCheckDate;
 
@@ -218,9 +241,24 @@ public class WatchlistController : ControllerBase
             watchlistItem.DynamicsDescription = request.DynamicsUpdate;
         }
 
-        if (request.NewRiskLevel.HasValue)
+        if (request.NewRiskLevel.HasValue && request.NewRiskLevel.Value != oldRiskLevel)
         {
             watchlistItem.RiskLevel = request.NewRiskLevel.Value;
+
+            // Create history record for risk level change during check
+            var history = new WatchlistHistory
+            {
+                WatchlistId = id,
+                OldRiskLevel = oldRiskLevel,
+                NewRiskLevel = request.NewRiskLevel.Value,
+                ChangedBy = userId,
+                ChangedAt = DateTime.UtcNow,
+                Comment = $"Risk level changed during check from {oldRiskLevel} to {request.NewRiskLevel.Value}. {request.DynamicsUpdate ?? ""}"
+            };
+            _context.Set<WatchlistHistory>().Add(history);
+
+            _logger.LogInformation("Watchlist item {Id} risk level changed during check from {OldLevel} to {NewLevel} by user {UserId}",
+                id, oldRiskLevel, request.NewRiskLevel.Value, userId);
         }
 
         watchlistItem.UpdatedAt = DateTime.UtcNow;
@@ -281,6 +319,32 @@ public class WatchlistController : ControllerBase
         return Ok(items);
     }
 
+    [HttpGet("{id}/history")]
+    public async Task<IActionResult> GetHistory(int id)
+    {
+        var watchlistItem = await _context.Watchlists.FindAsync(id);
+        if (watchlistItem == null)
+            return NotFound();
+
+        var history = await _context.Set<WatchlistHistory>()
+            .Include(h => h.ChangedByUser)
+            .Where(h => h.WatchlistId == id)
+            .OrderByDescending(h => h.ChangedAt)
+            .Select(h => new WatchlistHistoryDto
+            {
+                Id = h.Id,
+                OldRiskLevel = h.OldRiskLevel.HasValue ? h.OldRiskLevel.Value.ToString() : null,
+                NewRiskLevel = h.NewRiskLevel.HasValue ? h.NewRiskLevel.Value.ToString() : null,
+                ChangedBy = h.ChangedBy,
+                ChangedByLogin = h.ChangedByUser.Login,
+                ChangedAt = h.ChangedAt,
+                Comment = h.Comment
+            })
+            .ToListAsync();
+
+        return Ok(history);
+    }
+
     [HttpGet("statistics")]
     public async Task<IActionResult> GetStatistics()
     {
@@ -296,8 +360,8 @@ public class WatchlistController : ControllerBase
             .ToDictionaryAsync(x => x.RiskLevel, x => x.Count);
 
         var byRiskSphere = await _context.Watchlists
-            .Where(w => w.IsActive)
-            .GroupBy(w => w.RiskSphereId)
+            .Where(w => w.IsActive && w.RiskSphereId.HasValue)
+            .GroupBy(w => w.RiskSphereId!.Value)
             .Select(g => new { RiskSphere = g.Key, Count = g.Count() })
             .ToDictionaryAsync(x => x.RiskSphere, x => x.Count);
 
@@ -376,3 +440,14 @@ public record RecordCheckRequest(
     string? DynamicsUpdate,
     RiskLevel? NewRiskLevel
 );
+
+public record WatchlistHistoryDto
+{
+    public int Id { get; init; }
+    public string? OldRiskLevel { get; init; }
+    public string? NewRiskLevel { get; init; }
+    public int ChangedBy { get; init; }
+    public string ChangedByLogin { get; init; } = string.Empty;
+    public DateTime ChangedAt { get; init; }
+    public string? Comment { get; init; }
+}

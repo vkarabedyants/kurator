@@ -93,7 +93,6 @@ export default function UsersPage() {
     switch (role) {
       case UserRole.Admin: return 'bg-red-100 text-red-800';
       case UserRole.Curator: return 'bg-blue-100 text-blue-800';
-      case UserRole.BackupCurator: return 'bg-green-100 text-green-800';
       case UserRole.ThreatAnalyst: return 'bg-purple-100 text-purple-800';
       default: return 'bg-gray-100 text-gray-800';
     }
@@ -151,7 +150,6 @@ export default function UsersPage() {
                     className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                   >
                     <option value={UserRole.Curator}>Куратор</option>
-                    <option value={UserRole.BackupCurator}>Резервный куратор</option>
                     <option value={UserRole.ThreatAnalyst}>Аналитик угроз</option>
                     <option value={UserRole.Admin}>Администратор</option>
                   </select>

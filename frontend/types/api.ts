@@ -18,16 +18,22 @@ export interface PaginatedResponse<T> {
 export enum UserRole {
   Admin = 'Admin',
   Curator = 'Curator',
-  BackupCurator = 'BackupCurator',
   ThreatAnalyst = 'ThreatAnalyst'
 }
 
 export interface User {
   id: number;
   login: string;
-  role: UserRole;
+  role: UserRole | string;
   lastLoginAt?: string;
   createdAt: string;
+  isActive?: boolean;
+  isFirstLogin?: boolean;
+  mfaEnabled?: boolean;
+  primaryBlockIds?: number[];
+  primaryBlockNames?: string[];
+  backupBlockIds?: number[];
+  backupBlockNames?: string[];
 }
 
 export interface LoginRequest {
@@ -95,16 +101,25 @@ export enum BlockStatus {
   Archived = 'Archived'
 }
 
+export interface BlockCurator {
+  userId: number;
+  userLogin: string;
+  curatorType: string;
+  assignedAt: string;
+}
+
 export interface Block {
   id: number;
   name: string;
   description?: string;
   code: string;
-  status: BlockStatus;
-  primaryCuratorId?: number;
-  backupCuratorId?: number;
+  status: BlockStatus | string;
+  curators?: BlockCurator[];
   createdAt: string;
   updatedAt: string;
+  // Legacy fields (for backwards compatibility)
+  primaryCuratorId?: number;
+  backupCuratorId?: number;
   primaryCurator?: User;
   backupCurator?: User;
 }
@@ -149,13 +164,13 @@ export interface Contact {
   blockId: number;
   blockName: string;
   blockCode: string;
-  organizationId?: string;
+  organizationId?: number | null;
   position?: string;
-  influenceStatus: InfluenceStatus;
-  influenceType: InfluenceType;
+  influenceStatusId?: number | null;
+  influenceTypeId?: number | null;
   usefulnessDescription?: string;
-  communicationChannelId?: string;
-  contactSourceId?: string;
+  communicationChannelId?: number | null;
+  contactSourceId?: number | null;
   lastInteractionDate?: string;
   nextTouchDate?: string;
   notes?: string;
@@ -163,7 +178,7 @@ export interface Contact {
   responsibleCuratorLogin: string;
   createdAt: string;
   updatedAt: string;
-  updatedBy: string;
+  updatedBy: number;
   interactionCount?: number;
   lastInteractionDaysAgo?: number;
   isOverdue: boolean;
@@ -176,23 +191,23 @@ export interface ContactListItem {
   blockId: number;
   blockName: string;
   blockCode: string;
-  organizationId?: string;
+  organizationId?: number | null;
   position?: string;
-  influenceStatus: string;
-  influenceType: string;
+  influenceStatusId?: number | null;
+  influenceTypeId?: number | null;
   lastInteractionDate?: string;
   nextTouchDate?: string;
   responsibleCuratorId: number;
   responsibleCuratorLogin: string;
   updatedAt: string;
-  updatedBy: string;
+  updatedBy: number;
   isOverdue: boolean;
 }
 
 export interface ContactDetail extends ContactListItem {
   usefulnessDescription?: string;
-  communicationChannelId?: string;
-  contactSourceId?: string;
+  communicationChannelId?: number | null;
+  contactSourceId?: number | null;
   notes?: string;
   createdAt: string;
   interactionCount: number;
@@ -204,27 +219,27 @@ export interface ContactDetail extends ContactListItem {
 export interface CreateContactRequest {
   blockId: number;
   fullName: string;
-  organizationId?: string;
-  position?: string;
-  influenceStatus: InfluenceStatus;
-  influenceType: InfluenceType;
-  usefulnessDescription?: string;
-  communicationChannelId?: string;
-  contactSourceId?: string;
-  nextTouchDate?: string;
-  notes?: string;
+  organizationId?: number | null;
+  position?: string | null;
+  influenceStatusId?: number | null;
+  influenceTypeId?: number | null;
+  usefulnessDescription?: string | null;
+  communicationChannelId?: number | null;
+  contactSourceId?: number | null;
+  nextTouchDate?: string | null;
+  notes?: string | null;
 }
 
 export interface UpdateContactRequest {
-  organizationId?: string;
-  position?: string;
-  influenceStatus: InfluenceStatus;
-  influenceType: InfluenceType;
-  usefulnessDescription?: string;
-  communicationChannelId?: string;
-  contactSourceId?: string;
-  nextTouchDate?: string;
-  notes?: string;
+  organizationId?: number | null;
+  position?: string | null;
+  influenceStatusId?: number | null;
+  influenceTypeId?: number | null;
+  usefulnessDescription?: string | null;
+  communicationChannelId?: number | null;
+  contactSourceId?: number | null;
+  nextTouchDate?: string | null;
+  notes?: string | null;
 }
 
 // Interaction Types
@@ -247,38 +262,41 @@ export enum InteractionResult {
 export interface Interaction {
   id: number;
   contactId: number;
+  contactName?: string;
+  contactDisplayId?: string;
+  blockName?: string;
   interactionDate: string;
-  interactionTypeId: string;
+  interactionTypeId?: number | null;
   curatorId: number;
   curatorLogin: string;
-  resultId: string;
+  resultId?: number | null;
   comment?: string;
-  statusChangeFrom?: string;
-  statusChangeTo?: string;
+  statusChangeJson?: string;
+  attachmentsJson?: string;
   nextTouchDate?: string;
-  attachmentUrl?: string;
   createdAt: string;
   updatedAt: string;
-  updatedBy: string;
+  updatedBy: number;
 }
 
 export interface InteractionSummary {
   id: number;
   interactionDate: string;
-  interactionTypeId: string;
-  resultId: string;
+  interactionTypeId?: number | null;
+  resultId?: number | null;
   comment?: string;
-  statusChangeTo?: string;
+  statusChangeJson?: string;
   curatorLogin: string;
 }
 
 export interface CreateInteractionRequest {
   contactId: number;
   interactionDate?: string;
-  interactionTypeId: string;
-  resultId: string;
+  interactionTypeId?: number | null;
+  resultId?: number | null;
   comment?: string;
-  statusChangeTo?: InfluenceStatus;
+  statusChangeJson?: string;
+  attachmentsJson?: string;
   nextTouchDate?: string;
 }
 
@@ -318,22 +336,23 @@ export enum ThreatSphere {
 
 export interface WatchlistEntry {
   id: number;
-  nameOrAlias: string;
-  roleOrStatus?: string;
-  riskSphere?: string;
+  fullName: string;
+  roleStatus?: string;
+  riskSphereId?: number;
   threatSource?: string;
-  conflictStartDate?: string;
-  riskLevel: RiskLevel;
-  monitoringFrequency: MonitoringFrequency;
+  conflictDate?: string;
+  riskLevel: RiskLevel | string;
+  monitoringFrequency: MonitoringFrequency | string;
   lastCheckDate?: string;
   nextCheckDate?: string;
-  progressDynamics?: string;
+  dynamicsDescription?: string;
   watchOwnerId?: number;
   watchOwnerLogin?: string;
-  attachedMaterials?: string;
+  attachmentsJson?: string;
   createdAt: string;
   updatedAt: string;
-  updatedBy: string;
+  updatedBy: number;
+  requiresCheck?: boolean;
 }
 
 // FAQ Types
@@ -357,11 +376,11 @@ export interface FAQ {
 export interface ReferenceValue {
   id: number;
   category: string;
+  code: string;
   value: string;
-  displayName?: string;
   description?: string;
+  order: number;
   isActive: boolean;
-  displayOrder?: number;
 }
 
 // Audit Log Types
@@ -499,13 +518,6 @@ export interface InteractionDto extends Interaction {
 
 export interface WatchlistDto extends WatchlistEntry {
   watchOwnerName?: string;
-  fullNameOrAlias: string;
-  threatSource: string;
-  threatSphere: ThreatSphere;
-  progressDynamics?: string;
-  conflictStartDate: string;
-  lastCheckDate?: string;
-  nextCheckDate: string;
 }
 
 export interface FAQDto extends FAQ {

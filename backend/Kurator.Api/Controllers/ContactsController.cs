@@ -2,8 +2,10 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Kurator.Core.Entities;
+using Kurator.Core.Enums;
 using Kurator.Core.Interfaces;
 using Kurator.Infrastructure.Data;
+using System.Diagnostics;
 using System.Security.Claims;
 
 namespace Kurator.Api.Controllers;
@@ -25,11 +27,13 @@ public class ContactsController : ControllerBase
         _context = context;
         _encryptionService = encryptionService;
         _logger = logger;
+        _logger.LogDebug("[Contacts] ContactsController instantiated");
     }
 
     private int GetUserId() => int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
     private string GetUserLogin() => User.FindFirst(ClaimTypes.Name)?.Value ?? "Unknown";
     private bool IsAdmin() => User.IsInRole("Admin");
+    private string GetClientIp() => HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
 
     [HttpGet]
     public async Task<IActionResult> GetAll(
@@ -41,14 +45,19 @@ public class ContactsController : ControllerBase
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 50)
     {
+        var stopwatch = Stopwatch.StartNew();
         var userId = GetUserId();
+        var userLogin = GetUserLogin();
         var isAdmin = IsAdmin();
+
+        _logger.LogInformation("[Contacts] GetAll started. User: {UserLogin} (ID: {UserId}), IsAdmin: {IsAdmin}, Filters: blockId={BlockId}, search={Search}, page={Page}, pageSize={PageSize}",
+            userLogin, userId, isAdmin, blockId, search, page, pageSize);
 
         // ИЗМЕНЕНО: Теперь используем BlockCurator table для проверки доступа
         var query = _context.Contacts
             .Include(c => c.Block)
             .Include(c => c.ResponsibleCurator)
-            .Where(c => c.IsActive)
+            .Where(c => c.IsActive && c.Block.Status == BlockStatus.Active) // Фильтр архивных блоков
             .AsQueryable();
 
         // Access control: Curators see only their blocks
@@ -111,6 +120,10 @@ public class ContactsController : ControllerBase
             })
             .ToListAsync();
 
+        stopwatch.Stop();
+        _logger.LogInformation("[Contacts] GetAll completed. User: {UserLogin} (ID: {UserId}), ResultCount: {Count}, Total: {Total}, Duration: {Duration}ms",
+            userLogin, userId, contacts.Count, total, stopwatch.ElapsedMilliseconds);
+
         return Ok(new
         {
             data = contacts,
@@ -124,28 +137,46 @@ public class ContactsController : ControllerBase
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(int id)
     {
+        var stopwatch = Stopwatch.StartNew();
         var userId = GetUserId();
+        var userLogin = GetUserLogin();
         var isAdmin = IsAdmin();
+
+        _logger.LogInformation("[Contacts] GetById started. User: {UserLogin} (ID: {UserId}), ContactId: {ContactId}",
+            userLogin, userId, id);
 
         var contact = await _context.Contacts
             .Include(c => c.Block)
             .Include(c => c.ResponsibleCurator)
             .Include(c => c.Interactions.OrderByDescending(i => i.InteractionDate))
             .Include(c => c.StatusHistory.OrderByDescending(s => s.ChangedAt))
-            .FirstOrDefaultAsync(c => c.Id == id);
+            .FirstOrDefaultAsync(c => c.Id == id && c.IsActive && c.Block.Status == BlockStatus.Active);
 
         if (contact == null)
+        {
+            stopwatch.Stop();
+            _logger.LogWarning("[Contacts] GetById - Contact not found. User: {UserLogin} (ID: {UserId}), ContactId: {Id}, Duration: {Duration}ms",
+                userLogin, userId, id, stopwatch.ElapsedMilliseconds);
             return NotFound();
+        }
 
-        // ИЗМЕНЕНО: Access control через BlockCurator table
+        // Access control through BlockCurator table
         if (!isAdmin)
         {
             var hasAccess = await _context.BlockCurators
                 .AnyAsync(bc => bc.BlockId == contact.BlockId && bc.UserId == userId);
 
             if (!hasAccess)
+            {
+                stopwatch.Stop();
+                _logger.LogWarning("[Contacts] GetById - Access denied. User: {UserLogin} (ID: {UserId}), ContactId: {Id}, BlockId: {BlockId}, Duration: {Duration}ms",
+                    userLogin, userId, id, contact.BlockId, stopwatch.ElapsedMilliseconds);
                 return Forbid();
+            }
         }
+
+        _logger.LogDebug("[Contacts] GetById - Building response for contact: {ContactIdentifier}, BlockId: {BlockId}",
+            contact.ContactId, contact.BlockId);
 
         var result = new ContactDetailDto
         {
@@ -196,6 +227,10 @@ public class ContactsController : ControllerBase
             }).ToList()
         };
 
+        stopwatch.Stop();
+        _logger.LogInformation("[Contacts] GetById completed. User: {UserLogin} (ID: {UserId}), ContactId: {Id}, ContactIdentifier: {ContactIdentifier}, InteractionCount: {InteractionCount}, Duration: {Duration}ms",
+            userLogin, userId, id, contact.ContactId, contact.Interactions.Count, stopwatch.ElapsedMilliseconds);
+
         return Ok(result);
     }
 
@@ -203,35 +238,78 @@ public class ContactsController : ControllerBase
     [Authorize(Roles = "Admin,Curator")]
     public async Task<IActionResult> Create([FromBody] CreateContactRequest request)
     {
+        var stopwatch = Stopwatch.StartNew();
         var userId = GetUserId();
+        var userLogin = GetUserLogin();
+
+        _logger.LogInformation("[Contacts] Create started. User: {UserLogin} (ID: {UserId}), BlockId: {BlockId}",
+            userLogin, userId, request.BlockId);
+        _logger.LogDebug("[Contacts] Create request details: {Request}", System.Text.Json.JsonSerializer.Serialize(request));
+
+        if (!ModelState.IsValid)
+        {
+            stopwatch.Stop();
+            _logger.LogWarning("[Contacts] Create - Model validation failed. User: {UserLogin} (ID: {UserId}), Errors: {Errors}, Duration: {Duration}ms",
+                userLogin, userId, string.Join(", ", ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage)), stopwatch.ElapsedMilliseconds);
+            return BadRequest(new { message = "Invalid request", errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage) });
+        }
+
         var isAdmin = IsAdmin();
 
-        // ИЗМЕНЕНО: Access control через BlockCurator table, убрана роль BackupCurator
+        // Access control through BlockCurator table
         if (!isAdmin)
         {
             var hasAccess = await _context.BlockCurators
                 .AnyAsync(bc => bc.BlockId == request.BlockId && bc.UserId == userId);
 
             if (!hasAccess)
+            {
+                stopwatch.Stop();
+                _logger.LogWarning("[Contacts] Create - Access denied. User: {UserLogin} (ID: {UserId}), BlockId: {BlockId}, Duration: {Duration}ms",
+                    userLogin, userId, request.BlockId, stopwatch.ElapsedMilliseconds);
                 return Forbid();
+            }
         }
 
         // Generate ContactId (BLOCKCODE-###)
         var block = await _context.Blocks.FindAsync(request.BlockId);
         if (block == null)
+        {
+            stopwatch.Stop();
+            _logger.LogWarning("[Contacts] Create - Block not found. User: {UserLogin} (ID: {UserId}), BlockId: {BlockId}, Duration: {Duration}ms",
+                userLogin, userId, request.BlockId, stopwatch.ElapsedMilliseconds);
             return BadRequest(new { message = "Block not found" });
+        }
 
-        var lastContact = await _context.Contacts
+        // Find the maximum existing number for this block's contacts
+        var existingContacts = await _context.Contacts
             .Where(c => c.BlockId == request.BlockId)
-            .OrderByDescending(c => c.ContactId)
-            .FirstOrDefaultAsync();
+            .Select(c => c.ContactId)
+            .ToListAsync();
 
         int nextNumber = 1;
-        if (lastContact != null)
+        foreach (var existingContactId in existingContacts)
         {
-            var lastNumberStr = lastContact.ContactId.Split('-').Last();
-            if (int.TryParse(lastNumberStr, out int lastNumber))
-                nextNumber = lastNumber + 1;
+            // Try to extract number from formats like "BLOCK-001" or "BLOCK001"
+            var numberPart = existingContactId;
+
+            // Remove the block code prefix (with or without dash)
+            if (existingContactId.StartsWith(block.Code + "-", StringComparison.OrdinalIgnoreCase))
+            {
+                numberPart = existingContactId.Substring(block.Code.Length + 1);
+            }
+            else if (existingContactId.StartsWith(block.Code, StringComparison.OrdinalIgnoreCase))
+            {
+                numberPart = existingContactId.Substring(block.Code.Length);
+            }
+
+            if (int.TryParse(numberPart, out int existingNumber))
+            {
+                if (existingNumber >= nextNumber)
+                {
+                    nextNumber = existingNumber + 1;
+                }
+            }
         }
 
         var contactId = $"{block.Code}-{nextNumber:D3}";
@@ -276,7 +354,9 @@ public class ContactsController : ControllerBase
 
         await _context.SaveChangesAsync();
 
-        _logger.LogInformation("Contact created: {ContactId} by user {UserId}", contactId, userId);
+        stopwatch.Stop();
+        _logger.LogInformation("[Contacts] Create completed. User: {UserLogin} (ID: {UserId}), NewContactId: {ContactId}, Id: {Id}, BlockId: {BlockId}, Duration: {Duration}ms",
+            userLogin, userId, contactId, contact.Id, request.BlockId, stopwatch.ElapsedMilliseconds);
 
         return CreatedAtAction(nameof(GetById), new { id = contact.Id }, new { id = contact.Id, contactId });
     }
@@ -285,27 +365,44 @@ public class ContactsController : ControllerBase
     [Authorize(Roles = "Admin,Curator")]
     public async Task<IActionResult> Update(int id, [FromBody] UpdateContactRequest request)
     {
+        var stopwatch = Stopwatch.StartNew();
         var userId = GetUserId();
+        var userLogin = GetUserLogin();
         var isAdmin = IsAdmin();
+
+        _logger.LogInformation("[Contacts] Update started. User: {UserLogin} (ID: {UserId}), ContactId: {Id}",
+            userLogin, userId, id);
 
         var contact = await _context.Contacts
             .Include(c => c.Block)
             .FirstOrDefaultAsync(c => c.Id == id);
 
         if (contact == null)
+        {
+            stopwatch.Stop();
+            _logger.LogWarning("[Contacts] Update - Contact not found. User: {UserLogin} (ID: {UserId}), ContactId: {Id}, Duration: {Duration}ms",
+                userLogin, userId, id, stopwatch.ElapsedMilliseconds);
             return NotFound();
+        }
 
-        // ИЗМЕНЕНО: Access control через BlockCurator table
+        // Access control through BlockCurator table
         if (!isAdmin)
         {
             var hasAccess = await _context.BlockCurators
                 .AnyAsync(bc => bc.BlockId == contact.BlockId && bc.UserId == userId);
 
             if (!hasAccess)
+            {
+                stopwatch.Stop();
+                _logger.LogWarning("[Contacts] Update - Access denied. User: {UserLogin} (ID: {UserId}), ContactId: {Id}, BlockId: {BlockId}, Duration: {Duration}ms",
+                    userLogin, userId, id, contact.BlockId, stopwatch.ElapsedMilliseconds);
                 return Forbid();
+            }
         }
 
         var oldStatusId = contact.InfluenceStatusId;
+        _logger.LogDebug("[Contacts] Update - Current status: {OldStatusId}, New status: {NewStatusId}",
+            oldStatusId, request.InfluenceStatusId);
 
         contact.OrganizationId = request.OrganizationId;
         contact.Position = request.Position;
@@ -362,7 +459,9 @@ public class ContactsController : ControllerBase
 
         await _context.SaveChangesAsync();
 
-        _logger.LogInformation("Contact updated: {ContactId} by user {UserId}", contact.ContactId, userId);
+        stopwatch.Stop();
+        _logger.LogInformation("[Contacts] Update completed. User: {UserLogin} (ID: {UserId}), ContactId: {Id}, ContactIdentifier: {ContactIdentifier}, StatusChanged: {StatusChanged}, Duration: {Duration}ms",
+            userLogin, userId, id, contact.ContactId, oldStatusId != request.InfluenceStatusId, stopwatch.ElapsedMilliseconds);
 
         return NoContent();
     }
@@ -371,12 +470,21 @@ public class ContactsController : ControllerBase
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Delete(int id)
     {
-        // ИЗМЕНЕНО: Soft delete через IsActive
+        var stopwatch = Stopwatch.StartNew();
         var userId = GetUserId();
+        var userLogin = GetUserLogin();
+
+        _logger.LogInformation("[Contacts] Delete started. User: {UserLogin} (ID: {UserId}), ContactId: {Id}",
+            userLogin, userId, id);
 
         var contact = await _context.Contacts.FindAsync(id);
         if (contact == null)
+        {
+            stopwatch.Stop();
+            _logger.LogWarning("[Contacts] Delete - Contact not found. User: {UserLogin} (ID: {UserId}), ContactId: {Id}, Duration: {Duration}ms",
+                userLogin, userId, id, stopwatch.ElapsedMilliseconds);
             return NotFound();
+        }
 
         contact.IsActive = false;
         contact.UpdatedAt = DateTime.UtcNow;
@@ -395,7 +503,9 @@ public class ContactsController : ControllerBase
 
         await _context.SaveChangesAsync();
 
-        _logger.LogInformation("Contact deactivated: {ContactId} by user {UserId}", contact.ContactId, userId);
+        stopwatch.Stop();
+        _logger.LogInformation("[Contacts] Delete completed (soft delete). User: {UserLogin} (ID: {UserId}), ContactId: {Id}, ContactIdentifier: {ContactIdentifier}, Duration: {Duration}ms",
+            userLogin, userId, id, contact.ContactId, stopwatch.ElapsedMilliseconds);
 
         return NoContent();
     }
@@ -404,14 +514,19 @@ public class ContactsController : ControllerBase
     [Authorize(Roles = "Admin,Curator")]
     public async Task<IActionResult> GetOverdueContacts()
     {
+        var stopwatch = Stopwatch.StartNew();
         var userId = GetUserId();
+        var userLogin = GetUserLogin();
         var isAdmin = IsAdmin();
+
+        _logger.LogInformation("[Contacts] GetOverdueContacts started. User: {UserLogin} (ID: {UserId}), IsAdmin: {IsAdmin}",
+            userLogin, userId, isAdmin);
 
         // ИЗМЕНЕНО: Фильтрация по IsActive и использование BlockCurator table
         var query = _context.Contacts
             .Include(c => c.Block)
             .Include(c => c.ResponsibleCurator)
-            .Where(c => c.IsActive && c.NextTouchDate.HasValue && c.NextTouchDate.Value < DateTime.UtcNow);
+            .Where(c => c.IsActive && c.Block.Status == BlockStatus.Active && c.NextTouchDate.HasValue && c.NextTouchDate.Value < DateTime.UtcNow);
 
         if (!isAdmin)
         {
@@ -441,6 +556,10 @@ public class ContactsController : ControllerBase
                 IsOverdue = true
             })
             .ToListAsync();
+
+        stopwatch.Stop();
+        _logger.LogInformation("[Contacts] GetOverdueContacts completed. User: {UserLogin} (ID: {UserId}), OverdueCount: {Count}, Duration: {Duration}ms",
+            userLogin, userId, contacts.Count, stopwatch.ElapsedMilliseconds);
 
         return Ok(contacts);
     }

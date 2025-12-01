@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Providers } from "@/components/providers";
+import { NextIntlClientProvider } from "next-intl";
+import { getMessages } from "next-intl/server";
+import { routing } from "@/i18n/routing";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -18,17 +21,22 @@ export const metadata: Metadata = {
   description: "Система управления деловыми отношениями",
 };
 
-export default function RootLayout({
-  children,
+export default async function RootLayout({
+  children
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Получаем сообщения для русской локали по умолчанию
+  const messages = await getMessages();
+
   return (
     <html lang="ru">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <Providers>{children}</Providers>
+        <NextIntlClientProvider messages={messages}>
+          <Providers>{children}</Providers>
+        </NextIntlClientProvider>
       </body>
     </html>
   );

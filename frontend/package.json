@@ -13,7 +13,9 @@
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:ui": "playwright test --ui",
-    "test:e2e:report": "playwright show-report"
+    "test:e2e:report": "playwright show-report",
+    "generate:api": "openapi --input http://localhost:5000/swagger/v1/swagger.json --output ./services/generated --client axios --useOptions --useUnionTypes",
+    "generate:api:file": "openapi --input ./swagger.json --output ./services/generated --client axios --useOptions --useUnionTypes"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.90.7",
@@ -22,25 +24,39 @@
     "date-fns": "^2.30.0",
     "lucide-react": "^0.553.0",
     "next": "16.0.1",
+    "next-intl": "^4.5.5",
     "react": "19.2.0",
     "react-dom": "19.2.0",
-    "tailwind-merge": "^3.4.0"
+    "tailwind-merge": "^3.4.0",
+    "zod": "^4.1.13"
   },
   "devDependencies": {
+    "@babel/core": "^7.28.5",
+    "@babel/preset-env": "^7.28.5",
+    "@babel/preset-react": "^7.28.5",
+    "@babel/preset-typescript": "^7.28.5",
     "@playwright/test": "^1.56.1",
+    "@swc/core": "^1.15.3",
+    "@swc/jest": "^0.2.39",
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^14.6.1",
+    "@types/axios-mock-adapter": "^1.9.0",
     "@types/jest": "^30.0.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "axios-mock-adapter": "^2.1.0",
+    "babel-jest": "^30.2.0",
     "eslint": "^9",
     "eslint-config-next": "16.0.1",
     "jest": "^30.2.0",
     "jest-environment-jsdom": "^30.2.0",
+    "nswag": "^14.6.3",
+    "openapi-typescript-codegen": "^0.29.0",
     "tailwindcss": "^4",
+    "ts-jest": "^29.4.5",
     "ts-node": "^10.9.2",
     "typescript": "5.9.3"
   }

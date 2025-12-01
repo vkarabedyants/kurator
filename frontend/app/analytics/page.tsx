@@ -1,9 +1,27 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { BarChart3, TrendingUp, Users, Calendar, Activity, PieChart, Filter, Download } from 'lucide-react';
+import { BarChart3, TrendingUp, Users, Calendar, Activity, PieChart, Download } from 'lucide-react';
 import { api } from '@/services/api';
 
+// API response structure (what the backend actually returns)
+interface ApiDashboardResponse {
+  totalContacts: number;
+  totalInteractions: number;
+  totalBlocks: number;
+  totalUsers: number;
+  newContactsLastMonth: number;
+  interactionsLastMonth: number;
+  contactsByBlock: Record<string, number>;
+  contactsByInfluenceStatus: Record<string, number>;
+  contactsByInfluenceType: Record<string, number>;
+  interactionsByBlock: Record<string, number>;
+  topCuratorsByActivity: Record<string, number>;
+  statusChangeDynamics: Record<string, number>;
+  recentAuditLogs: unknown[];
+}
+
+// Transformed data for UI
 interface AnalyticsData {
   contactsCount: number;
   newContactsThisMonth: number;
@@ -13,8 +31,6 @@ interface AnalyticsData {
   influenceStatusDistribution: StatusDistribution[];
   influenceTypeDistribution: TypeDistribution[];
   topCurators: CuratorActivity[];
-  statusChanges: StatusChange[];
-  monthlyTrends: MonthlyTrend[];
 }
 
 interface BlockStat {
@@ -43,18 +59,51 @@ interface CuratorActivity {
   lastActivity: string;
 }
 
-interface StatusChange {
-  date: string;
-  contactName: string;
-  fromStatus: string;
-  toStatus: string;
-  curatorName: string;
-}
+// Transform API response to UI-friendly format
+function transformApiResponse(data: ApiDashboardResponse): AnalyticsData {
+  const totalContacts = data.totalContacts || 0;
 
-interface MonthlyTrend {
-  month: string;
-  contacts: number;
-  interactions: number;
+  // Transform contactsByBlock to blockStatistics array
+  const blockStatistics: BlockStat[] = Object.entries(data.contactsByBlock || {}).map(([name, count]) => ({
+    blockName: name,
+    blockCode: name.substring(0, 3).toUpperCase(),
+    contactsCount: count,
+    interactionsCount: (data.interactionsByBlock || {})[name] || 0,
+    curatorsCount: 1, // Default, as API doesn't provide this
+  }));
+
+  // Transform contactsByInfluenceStatus to distribution array
+  const statusEntries = Object.entries(data.contactsByInfluenceStatus || {});
+  const influenceStatusDistribution: StatusDistribution[] = statusEntries.map(([status, count]) => ({
+    status,
+    count,
+    percentage: totalContacts > 0 ? Math.round((count / totalContacts) * 100) : 0,
+  }));
+
+  // Transform contactsByInfluenceType to distribution array
+  const influenceTypeDistribution: TypeDistribution[] = Object.entries(data.contactsByInfluenceType || {}).map(([type, count]) => ({
+    type,
+    count,
+  }));
+
+  // Transform topCuratorsByActivity to curators array
+  const topCurators: CuratorActivity[] = Object.entries(data.topCuratorsByActivity || {}).map(([name, interactions]) => ({
+    curatorName: name,
+    interactionsCount: interactions,
+    contactsManaged: 0, // API doesn't provide this
+    lastActivity: new Date().toISOString(),
+  }));
+
+  return {
+    contactsCount: totalContacts,
+    newContactsThisMonth: data.newContactsLastMonth || 0,
+    interactionsCount: data.totalInteractions || 0,
+    interactionsThisMonth: data.interactionsLastMonth || 0,
+    blockStatistics,
+    influenceStatusDistribution,
+    influenceTypeDistribution,
+    topCurators,
+  };
 }
 
 export default function AnalyticsPage() {
@@ -70,14 +119,15 @@ export default function AnalyticsPage() {
   const loadAnalytics = async () => {
     try {
       setIsLoading(true);
-      const response = await api.get('/dashboard/admin', {
+      const response = await api.get<ApiDashboardResponse>('/dashboard/admin', {
         params: {
           period: selectedPeriod,
           blockId: selectedBlock === 'all' ? undefined : selectedBlock
         }
       });
       if (response.data) {
-        setAnalytics(response.data);
+        const transformed = transformApiResponse(response.data);
+        setAnalytics(transformed);
       }
     } catch (error) {
       console.error('Не удалось загрузить аналитику:', error);
@@ -211,18 +261,22 @@ export default function AnalyticsPage() {
               Распределение по статусам влияния
             </h3>
             <div className="space-y-3">
-              {analytics.influenceStatusDistribution.map((status) => (
-                <div key={status.status} className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-4 h-4 rounded-full ${getStatusColor(status.status)}`}></div>
-                    <span className="font-medium">Статус {status.status}</span>
+              {analytics.influenceStatusDistribution.length === 0 ? (
+                <p className="text-gray-500 text-center py-4">Нет данных о статусах влияния</p>
+              ) : (
+                analytics.influenceStatusDistribution.map((status) => (
+                  <div key={status.status} className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-4 h-4 rounded-full ${getStatusColor(status.status)}`}></div>
+                      <span className="font-medium">Статус {status.status}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-600">{status.count} контактов</span>
+                      <span className="text-sm text-gray-500">({status.percentage}%)</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-gray-600">{status.count} контактов</span>
-                    <span className="text-sm text-gray-500">({status.percentage}%)</span>
-                  </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
 
@@ -232,20 +286,24 @@ export default function AnalyticsPage() {
               Распределение по типам влияния
             </h3>
             <div className="space-y-3">
-              {analytics.influenceTypeDistribution.map((type) => (
-                <div key={type.type} className="flex items-center justify-between">
-                  <span className="text-gray-700">{type.type}</span>
-                  <div className="flex items-center gap-2">
-                    <div className="w-32 bg-gray-200 rounded-full h-2">
-                      <div
-                        className="bg-blue-600 h-2 rounded-full"
-                        style={{ width: `${(type.count / analytics.contactsCount) * 100}%` }}
-                      ></div>
+              {analytics.influenceTypeDistribution.length === 0 ? (
+                <p className="text-gray-500 text-center py-4">Нет данных о типах влияния</p>
+              ) : (
+                analytics.influenceTypeDistribution.map((type) => (
+                  <div key={type.type} className="flex items-center justify-between">
+                    <span className="text-gray-700">{type.type}</span>
+                    <div className="flex items-center gap-2">
+                      <div className="w-32 bg-gray-200 rounded-full h-2">
+                        <div
+                          className="bg-blue-600 h-2 rounded-full"
+                          style={{ width: `${analytics.contactsCount > 0 ? (type.count / analytics.contactsCount) * 100 : 0}%` }}
+                        ></div>
+                      </div>
+                      <span className="text-sm text-gray-600 w-12 text-right">{type.count}</span>
                     </div>
-                    <span className="text-sm text-gray-600 w-12 text-right">{type.count}</span>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
         </div>
@@ -265,24 +323,32 @@ export default function AnalyticsPage() {
                 </tr>
               </thead>
               <tbody>
-                {analytics.blockStatistics.map((block) => (
-                  <tr key={block.blockCode} className="border-b hover:bg-gray-50">
-                    <td className="py-3">
-                      <div>
-                        <span className="font-medium">{block.blockName}</span>
-                        <span className="ml-2 text-xs text-gray-500">({block.blockCode})</span>
-                      </div>
-                    </td>
-                    <td className="text-center">{block.contactsCount}</td>
-                    <td className="text-center">{block.interactionsCount}</td>
-                    <td className="text-center">{block.curatorsCount}</td>
-                    <td className="text-center">
-                      {block.contactsCount > 0
-                        ? (block.interactionsCount / block.contactsCount).toFixed(1)
-                        : '0'}
+                {analytics.blockStatistics.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="text-center py-8 text-gray-500">
+                      Нет данных о блоках
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  analytics.blockStatistics.map((block) => (
+                    <tr key={block.blockCode} className="border-b hover:bg-gray-50">
+                      <td className="py-3">
+                        <div>
+                          <span className="font-medium">{block.blockName}</span>
+                          <span className="ml-2 text-xs text-gray-500">({block.blockCode})</span>
+                        </div>
+                      </td>
+                      <td className="text-center">{block.contactsCount}</td>
+                      <td className="text-center">{block.interactionsCount}</td>
+                      <td className="text-center">{block.curatorsCount}</td>
+                      <td className="text-center">
+                        {block.contactsCount > 0
+                          ? (block.interactionsCount / block.contactsCount).toFixed(1)
+                          : '0'}
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -292,23 +358,27 @@ export default function AnalyticsPage() {
         <div className="bg-white rounded-lg shadow p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Топ активных кураторов</h3>
           <div className="grid gap-4">
-            {analytics.topCurators.slice(0, 5).map((curator, index) => (
-              <div key={curator.curatorName} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <span className="text-lg font-bold text-gray-400">#{index + 1}</span>
-                  <div>
-                    <p className="font-medium text-gray-900">{curator.curatorName}</p>
-                    <p className="text-sm text-gray-600">
-                      {curator.contactsManaged} управляемых контактов
-                    </p>
+            {analytics.topCurators.length === 0 ? (
+              <p className="text-gray-500 text-center py-8">Нет данных об активности кураторов</p>
+            ) : (
+              analytics.topCurators.slice(0, 5).map((curator, index) => (
+                <div key={curator.curatorName} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <span className="text-lg font-bold text-gray-400">#{index + 1}</span>
+                    <div>
+                      <p className="font-medium text-gray-900">{curator.curatorName}</p>
+                      <p className="text-sm text-gray-600">
+                        {curator.contactsManaged} управляемых контактов
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-bold text-purple-600">{curator.interactionsCount}</p>
+                    <p className="text-xs text-gray-500">взаимодействий</p>
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className="font-bold text-purple-600">{curator.interactionsCount}</p>
-                  <p className="text-xs text-gray-500">взаимодействий</p>
-                </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
       </div>

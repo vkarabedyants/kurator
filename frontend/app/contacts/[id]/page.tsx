@@ -16,8 +16,8 @@ export default function ContactDetailPage() {
   const [showAddInteraction, setShowAddInteraction] = useState(false);
   const [interactionForm, setInteractionForm] = useState<CreateInteractionRequest>({
     contactId: Number(params.id),
-    interactionTypeId: 'Meeting',
-    resultId: 'Positive',
+    interactionTypeId: null,
+    resultId: null,
     comment: '',
   });
 
@@ -45,8 +45,8 @@ export default function ContactDetailPage() {
       fetchContact(); // Refresh to show new interaction
       setInteractionForm({
         contactId: Number(params.id),
-        interactionTypeId: 'Meeting',
-        resultId: 'Positive',
+        interactionTypeId: null,
+        resultId: null,
         comment: '',
       });
     } catch (err: any) {
@@ -152,8 +152,8 @@ export default function ContactDetailPage() {
                   <div>
                     <dt className="text-sm font-medium text-gray-500">Статус влияния</dt>
                     <dd className="mt-1">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeColor(contact.influenceStatus)}`}>
-                        {contact.influenceStatus}
+                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeColor(contact.influenceStatusId)}`}>
+                        {contact.influenceStatusId}
                       </span>
                     </dd>
                   </div>
@@ -320,11 +320,11 @@ export default function ContactDetailPage() {
 
           {/* Interactions List */}
           <div className="px-6 py-4">
-            {contact.interactions.length === 0 ? (
+            {(contact.interactions?.length ?? 0) === 0 ? (
               <p className="text-center py-6 text-gray-500">Взаимодействий пока нет</p>
             ) : (
               <div className="space-y-4">
-                {contact.interactions.map((interaction) => (
+                {(contact.interactions ?? []).map((interaction) => (
                   <div key={interaction.id} className="border-l-4 border-indigo-500 pl-4 py-2">
                     <div className="flex items-center justify-between">
                       <div>
@@ -358,14 +358,14 @@ export default function ContactDetailPage() {
         </div>
 
         {/* Status History */}
-        {contact.statusHistory.length > 0 && (
+        {(contact.statusHistory?.length ?? 0) > 0 && (
           <div className="bg-white shadow rounded-lg">
             <div className="px-6 py-4 border-b border-gray-200">
               <h3 className="text-lg font-semibold text-gray-900">История изменения статуса</h3>
             </div>
             <div className="px-6 py-4">
               <div className="space-y-3">
-                {contact.statusHistory.map((history) => (
+                {(contact.statusHistory ?? []).map((history) => (
                   <div key={history.id} className="flex items-center justify-between py-2 border-b border-gray-100">
                     <div className="flex items-center space-x-3">
                       <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeColor(history.oldStatus)}`}>

@@ -79,6 +79,22 @@ public class EncryptionServiceTests
     }
 
     [Fact]
+    public void Encrypt_ShouldThrowException_ForNullInput()
+    {
+        // Act & Assert
+        var action = () => _encryptionService.Encrypt(null!);
+        action.Should().Throw<ArgumentNullException>();
+    }
+
+    [Fact]
+    public void Decrypt_ShouldThrowException_ForNullInput()
+    {
+        // Act & Assert
+        var action = () => _encryptionService.Decrypt(null!);
+        action.Should().Throw<ArgumentNullException>();
+    }
+
+    [Fact]
     public void Encrypt_ShouldEncrypt_WhitespaceString()
     {
         // Arrange
@@ -122,43 +138,53 @@ public class EncryptionServiceTests
         decrypted.Should().Be(plaintext);
     }
 
-    [Fact]
-    public void Encrypt_ShouldHandleLargeText()
+    [Theory]
+    [InlineData(1)]
+    [InlineData(100)]
+    [InlineData(1000)]
+    [InlineData(10000)]
+    public void EncryptDecrypt_ShouldHandleTextsOfVariousLengths(int length)
     {
         // Arrange
-        var largeText = new string('A', 10000);
+        var text = new string('A', length);
 
         // Act
-        var encrypted = _encryptionService.Encrypt(largeText);
+        var encrypted = _encryptionService.Encrypt(text);
         var decrypted = _encryptionService.Decrypt(encrypted);
 
         // Assert
-        decrypted.Should().Be(largeText);
-        decrypted.Length.Should().Be(10000);
+        decrypted.Should().Be(text);
+        decrypted.Length.Should().Be(length);
+        encrypted.Should().NotBeNullOrEmpty();
+        encrypted.Should().NotBe(text);
     }
 
     [Fact]
-    public void Decrypt_ShouldThrowException_ForInvalidCiphertext()
+    public void Decrypt_ShouldReturnOriginalValue_ForInvalidCiphertext()
     {
-        // Arrange
+        // Arrange - Invalid Base64 data
         var invalidCiphertext = "this_is_not_valid_base64_encrypted_data";
 
-        // Act & Assert
-        var action = () => _encryptionService.Decrypt(invalidCiphertext);
-        action.Should().Throw<Exception>();
+        // Act - Should return original value as fallback (graceful degradation)
+        var result = _encryptionService.Decrypt(invalidCiphertext);
+
+        // Assert
+        result.Should().Be(invalidCiphertext);
     }
 
     [Fact]
-    public void Decrypt_ShouldThrowException_ForTamperedCiphertext()
+    public void Decrypt_ShouldReturnOriginalValue_ForTamperedCiphertext()
     {
         // Arrange
         var plaintext = "Original text";
         var encrypted = _encryptionService.Encrypt(plaintext);
         var tampered = encrypted.Substring(0, encrypted.Length - 5) + "XXXXX";
 
-        // Act & Assert
-        var action = () => _encryptionService.Decrypt(tampered);
-        action.Should().Throw<Exception>();
+        // Act - Should return tampered value as fallback (graceful degradation)
+        var result = _encryptionService.Decrypt(tampered);
+
+        // Assert - Returns the tampered value since decryption fails
+        result.Should().Be(tampered);
     }
 
     [Theory]

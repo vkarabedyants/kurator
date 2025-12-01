@@ -49,6 +49,72 @@ public class BlocksController : ControllerBase
         return Ok(blocks);
     }
 
+    [HttpGet("my-blocks")]
+    [Authorize(Roles = "Admin,Curator")]
+    public async Task<IActionResult> GetMyBlocks()
+    {
+        var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+        var isAdmin = User.IsInRole("Admin");
+
+        List<BlockDto> blocks;
+
+        if (isAdmin)
+        {
+            // Admins can see all active blocks
+            blocks = await _context.Blocks
+                .Where(b => b.Status == Core.Enums.BlockStatus.Active)
+                .Select(b => new BlockDto
+                {
+                    Id = b.Id,
+                    Name = b.Name,
+                    Code = b.Code,
+                    Description = b.Description,
+                    Status = b.Status.ToString(),
+                    Curators = b.CuratorAssignments.Select(bc => new BlockCuratorDto
+                    {
+                        UserId = bc.UserId,
+                        UserLogin = bc.User.Login,
+                        CuratorType = bc.CuratorType.ToString(),
+                        AssignedAt = bc.AssignedAt
+                    }).ToList(),
+                    CreatedAt = b.CreatedAt,
+                    UpdatedAt = b.UpdatedAt
+                })
+                .ToListAsync();
+        }
+        else
+        {
+            // Curators can only see their assigned blocks
+            var userBlockIds = await _context.BlockCurators
+                .Where(bc => bc.UserId == userId)
+                .Select(bc => bc.BlockId)
+                .ToListAsync();
+
+            blocks = await _context.Blocks
+                .Where(b => userBlockIds.Contains(b.Id) && b.Status == Core.Enums.BlockStatus.Active)
+                .Select(b => new BlockDto
+                {
+                    Id = b.Id,
+                    Name = b.Name,
+                    Code = b.Code,
+                    Description = b.Description,
+                    Status = b.Status.ToString(),
+                    Curators = b.CuratorAssignments.Select(bc => new BlockCuratorDto
+                    {
+                        UserId = bc.UserId,
+                        UserLogin = bc.User.Login,
+                        CuratorType = bc.CuratorType.ToString(),
+                        AssignedAt = bc.AssignedAt
+                    }).ToList(),
+                    CreatedAt = b.CreatedAt,
+                    UpdatedAt = b.UpdatedAt
+                })
+                .ToListAsync();
+        }
+
+        return Ok(blocks);
+    }
+
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(int id)
     {

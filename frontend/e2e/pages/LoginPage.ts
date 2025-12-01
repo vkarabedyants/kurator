@@ -10,11 +10,12 @@ export class LoginPage {
 
   constructor(page: Page) {
     this.page = page;
-    // More flexible locators to match the actual page
-    this.loginInput = page.locator('input[placeholder*="ogin" i]').first();
-    this.passwordInput = page.locator('input[placeholder*="assword" i]').first();
-    this.submitButton = page.locator('button[type="submit"]').or(page.locator('button:has-text("Sign in")')).first();
-    this.errorMessage = page.locator('.text-red-500, .text-red-600, .text-red-700, [class*="error"]');
+    // Flexible locators that work with both Russian and English UI
+    // Russian: "Логин" / "Пароль", English: "Login" / "Password"
+    this.loginInput = page.locator('input#login').or(page.locator('input[name="login"]')).first();
+    this.passwordInput = page.locator('input#password').or(page.locator('input[name="password"]')).first();
+    this.submitButton = page.locator('button[type="submit"]').first();
+    this.errorMessage = page.locator('.text-red-500, .text-red-600, .text-red-700, [class*="error"], .bg-red-50');
     this.pageTitle = page.locator('text=KURATOR').or(page.locator('text=КУРАТОР')).first();
   }
 

@@ -1,14 +1,26 @@
 import { defineConfig, devices } from '@playwright/test';
+import path from 'path';
 
 /**
  * Playwright configuration for KURATOR E2E tests
+ *
+ * OPTIMIZATIONS APPLIED:
+ * 1. Parallel test execution with multiple workers
+ * 2. Shared authentication state to avoid re-login
+ * 3. Optimized timeouts for faster failure detection
+ * 4. Browser context reuse through storage state
+ *
  * @see https://playwright.dev/docs/test-configuration
  */
+
+// Storage state file for authenticated sessions
+const STORAGE_STATE = path.join(__dirname, 'e2e/.auth/admin.json');
+
 export default defineConfig({
   testDir: './e2e',
 
   /* Run tests in files in parallel */
-  fullyParallel: false,
+  fullyParallel: true,
 
   /* Fail the build on CI if you accidentally left test.only in the source code. */
   forbidOnly: !!process.env.CI,
@@ -16,8 +28,16 @@ export default defineConfig({
   /* Retry on CI only */
   retries: process.env.CI ? 2 : 0,
 
-  /* Opt out of parallel tests on CI. */
-  workers: 1,
+  /* Use multiple workers for parallel execution */
+  workers: process.env.CI ? 2 : 4,
+
+  /* Global timeout for each test */
+  timeout: 30000,
+
+  /* Expect timeout - faster assertion failures */
+  expect: {
+    timeout: 5000,
+  },
 
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: [
@@ -36,23 +56,58 @@ export default defineConfig({
     /* Screenshot on failure */
     screenshot: 'only-on-failure',
 
-    /* Video on failure */
-    video: 'retain-on-failure',
+    /* Video - disabled by default for speed, enable only on failure in CI */
+    video: process.env.CI ? 'retain-on-failure' : 'off',
 
-    /* Maximum time each action can take */
-    actionTimeout: 10000,
+    /* Maximum time each action can take - reduced for faster failure detection */
+    actionTimeout: 8000,
 
-    /* Navigation timeout */
-    navigationTimeout: 30000,
+    /* Navigation timeout - reduced from 30000 */
+    navigationTimeout: 15000,
+
+    /* Bypass CSP for faster page loads in tests */
+    bypassCSP: true,
+
+    /* Accept downloads automatically */
+    acceptDownloads: true,
   },
 
   /* Configure projects for major browsers */
   projects: [
+    // Setup project - runs first to create auth state
+    {
+      name: 'setup',
+      testMatch: /global\.setup\.ts/,
+      teardown: 'cleanup',
+    },
+    // Cleanup project - runs after all tests
+    {
+      name: 'cleanup',
+      testMatch: /global\.teardown\.ts/,
+    },
+    // Main test project - uses authenticated state
     {
       name: 'chromium',
+      // Exclude tests that need fresh sessions (login flow, role tests)
+      testIgnore: /smoke\.spec\.ts|role-based-access\.spec\.ts/,
       use: {
         ...devices['Desktop Chrome'],
-        viewport: { width: 1280, height: 720 }
+        viewport: { width: 1280, height: 720 },
+        // Use stored authentication state
+        storageState: STORAGE_STATE,
+      },
+      dependencies: ['setup'],
+    },
+    // Unauthenticated tests - for login page, auth flow tests
+    // These tests need fresh sessions without pre-authenticated state
+    {
+      name: 'chromium-no-auth',
+      testMatch: /smoke\.spec\.ts|role-based-access\.spec\.ts/,
+      use: {
+        ...devices['Desktop Chrome'],
+        viewport: { width: 1280, height: 720 },
+        // No storage state - fresh session
+        storageState: undefined,
       },
     },
   ],

@@ -1,7 +1,7 @@
 export interface User {
   id: number;
   login: string;
-  role: 'Admin' | 'Curator' | 'BackupCurator' | 'ThreatAnalyst';
+  role: 'Admin' | 'Curator' | 'ThreatAnalyst';
   createdAt: string;
   lastLoginAt?: string;
 }

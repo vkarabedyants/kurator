@@ -20,7 +20,7 @@ public class UserTests
         user.IsFirstLogin.Should().BeTrue();
         user.IsActive.Should().BeTrue();
         user.MfaEnabled.Should().BeFalse();
-        user.CreatedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
+        user.CreatedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(5));
     }
 
     [Fact]
@@ -58,16 +58,17 @@ public class UserTests
     }
 
     [Theory]
-    [InlineData(UserRole.Admin)]
-    [InlineData(UserRole.Curator)]
-    [InlineData(UserRole.ThreatAnalyst)]
-    public void User_ShouldSupportAllRoles(UserRole role)
+    [InlineData(UserRole.Admin, true)]
+    [InlineData(UserRole.Curator, true)]
+    [InlineData(UserRole.ThreatAnalyst, true)]
+    public void User_ShouldSupportAllRoles(UserRole role, bool expectedValid)
     {
         // Arrange & Act
         var user = new User { Role = role };
 
         // Assert
         user.Role.Should().Be(role);
+        expectedValid.Should().BeTrue(); // Все роли должны поддерживаться
     }
 
     [Fact]

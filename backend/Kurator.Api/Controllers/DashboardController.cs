@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Kurator.Core.Enums;
 using Kurator.Core.Interfaces;
 using Kurator.Infrastructure.Data;
+using System.Diagnostics;
 using System.Security.Claims;
 
 namespace Kurator.Api.Controllers;
@@ -25,17 +26,24 @@ public class DashboardController : ControllerBase
         _context = context;
         _encryptionService = encryptionService;
         _logger = logger;
+        _logger.LogDebug("[Dashboard] DashboardController instantiated");
     }
 
     private int GetUserId() => int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+    private string GetUserLogin() => User.FindFirst(ClaimTypes.Name)?.Value ?? "Unknown";
     private bool IsAdmin() => User.IsInRole("Admin");
 
     [HttpGet("curator")]
-    [Authorize(Roles = "Admin,Curator,BackupCurator")]
+    [Authorize(Roles = "Admin,Curator")]
     public async Task<IActionResult> GetCuratorDashboard()
     {
+        var stopwatch = Stopwatch.StartNew();
         var userId = GetUserId();
+        var userLogin = GetUserLogin();
         var isAdmin = IsAdmin();
+
+        _logger.LogInformation("[Dashboard] GetCuratorDashboard started. User: {UserLogin} (ID: {UserId}), IsAdmin: {IsAdmin}",
+            userLogin, userId, isAdmin);
 
         // Get user's blocks
         // ИЗМЕНЕНО: Используем BlockCurators table вместо PrimaryCuratorId/BackupCuratorId
@@ -60,19 +68,22 @@ public class DashboardController : ControllerBase
             });
         }
 
-        // Total contacts in curator's blocks
+        // Total contacts in curator's blocks (only active blocks)
         var totalContacts = await _context.Contacts
-            .CountAsync(c => userBlockIds.Contains(c.BlockId));
+            .Include(c => c.Block)
+            .CountAsync(c => userBlockIds.Contains(c.BlockId) && c.IsActive && c.Block.Status == BlockStatus.Active);
 
         // Interactions in last month
         var lastMonth = DateTime.UtcNow.AddMonths(-1);
         var interactionsLastMonth = await _context.Interactions
             .Include(i => i.Contact)
-            .CountAsync(i => userBlockIds.Contains(i.Contact.BlockId) && i.InteractionDate >= lastMonth);
+                .ThenInclude(c => c.Block)
+            .CountAsync(i => userBlockIds.Contains(i.Contact.BlockId) && i.IsActive && i.Contact.Block.Status == BlockStatus.Active && i.InteractionDate >= lastMonth);
 
         // Average interval between interactions (days)
         var activeContacts = await _context.Contacts
-            .Where(c => userBlockIds.Contains(c.BlockId) && c.LastInteractionDate.HasValue)
+            .Include(c => c.Block)
+            .Where(c => userBlockIds.Contains(c.BlockId) && c.IsActive && c.Block.Status == BlockStatus.Active && c.LastInteractionDate.HasValue)
             .Select(c => new
             {
                 c.LastInteractionDate,
@@ -91,14 +102,20 @@ public class DashboardController : ControllerBase
 
         // Overdue contacts
         var overdueContacts = await _context.Contacts
-            .CountAsync(c => userBlockIds.Contains(c.BlockId) && 
-                            c.NextTouchDate.HasValue && 
+            .Include(c => c.Block)
+            .CountAsync(c => userBlockIds.Contains(c.BlockId) &&
+                            c.IsActive &&
+                            c.Block.Status == BlockStatus.Active &&
+                            c.NextTouchDate.HasValue &&
                             c.NextTouchDate.Value < DateTime.UtcNow);
 
         // Recent 5 interactions
         var recentInteractions = await _context.Interactions
             .Include(i => i.Contact)
-            .Where(i => userBlockIds.Contains(i.Contact.BlockId))
+                .ThenInclude(c => c.Block)
+            .Where(i => userBlockIds.Contains(i.Contact.BlockId) &&
+                       i.IsActive &&
+                       i.Contact.Block.Status == BlockStatus.Active)
             .OrderByDescending(i => i.InteractionDate)
             .Take(5)
             .Select(i => new RecentInteractionDto
@@ -114,8 +131,11 @@ public class DashboardController : ControllerBase
 
         // Contacts requiring attention (overdue next touch date)
         var attentionContacts = await _context.Contacts
-            .Where(c => userBlockIds.Contains(c.BlockId) && 
-                       c.NextTouchDate.HasValue && 
+            .Include(c => c.Block)
+            .Where(c => userBlockIds.Contains(c.BlockId) &&
+                       c.IsActive &&
+                       c.Block.Status == BlockStatus.Active &&
+                       c.NextTouchDate.HasValue &&
                        c.NextTouchDate.Value < DateTime.UtcNow)
             .OrderBy(c => c.NextTouchDate)
             .Take(10)
@@ -160,6 +180,10 @@ public class DashboardController : ControllerBase
             InteractionsByType = interactionsByType
         };
 
+        stopwatch.Stop();
+        _logger.LogInformation("[Dashboard] GetCuratorDashboard completed. User: {UserLogin} (ID: {UserId}), TotalContacts: {TotalContacts}, OverdueContacts: {OverdueContacts}, Duration: {Duration}ms",
+            userLogin, userId, totalContacts, overdueContacts, stopwatch.ElapsedMilliseconds);
+
         return Ok(dashboard);
     }
 
@@ -167,20 +191,36 @@ public class DashboardController : ControllerBase
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> GetAdminDashboard()
     {
-        var totalContacts = await _context.Contacts.CountAsync();
-        var totalInteractions = await _context.Interactions.CountAsync();
+        var stopwatch = Stopwatch.StartNew();
+        var userId = GetUserId();
+        var userLogin = GetUserLogin();
+
+        _logger.LogInformation("[Dashboard] GetAdminDashboard started. User: {UserLogin} (ID: {UserId})",
+            userLogin, userId);
+
+        var totalContacts = await _context.Contacts
+            .Include(c => c.Block)
+            .CountAsync(c => c.IsActive && c.Block.Status == BlockStatus.Active);
+        var totalInteractions = await _context.Interactions
+            .Include(i => i.Contact)
+                .ThenInclude(c => c.Block)
+            .CountAsync(i => i.IsActive && i.Contact.Block.Status == BlockStatus.Active);
         var totalBlocks = await _context.Blocks.CountAsync(b => b.Status == BlockStatus.Active);
         var totalUsers = await _context.Users.CountAsync();
 
         var lastMonth = DateTime.UtcNow.AddMonths(-1);
         var newContactsLastMonth = await _context.Contacts
-            .CountAsync(c => c.CreatedAt >= lastMonth);
+            .Include(c => c.Block)
+            .CountAsync(c => c.IsActive && c.Block.Status == BlockStatus.Active && c.CreatedAt >= lastMonth);
         var interactionsLastMonth = await _context.Interactions
-            .CountAsync(i => i.InteractionDate >= lastMonth);
+            .Include(i => i.Contact)
+                .ThenInclude(c => c.Block)
+            .CountAsync(i => i.IsActive && i.Contact.Block.Status == BlockStatus.Active && i.InteractionDate >= lastMonth);
 
         // Contacts by block
         var contactsByBlock = await _context.Contacts
             .Include(c => c.Block)
+            .Where(c => c.IsActive && c.Block.Status == BlockStatus.Active)
             .GroupBy(c => c.Block.Name)
             .Select(g => new { Block = g.Key, Count = g.Count() })
             .OrderByDescending(x => x.Count)
@@ -189,7 +229,8 @@ public class DashboardController : ControllerBase
         // Contacts by influence status (all)
         // ИЗМЕНЕНО: InfluenceStatusId (int?), фильтруем null
         var contactsByStatus = await _context.Contacts
-            .Where(c => c.InfluenceStatusId.HasValue)
+            .Include(c => c.Block)
+            .Where(c => c.IsActive && c.Block.Status == BlockStatus.Active && c.InfluenceStatusId.HasValue)
             .GroupBy(c => c.InfluenceStatusId!.Value)
             .Select(g => new { Status = g.Key.ToString(), Count = g.Count() })
             .ToDictionaryAsync(x => x.Status, x => x.Count);
@@ -197,7 +238,8 @@ public class DashboardController : ControllerBase
         // Contacts by influence type
         // ИЗМЕНЕНО: InfluenceTypeId (int?), фильтруем null
         var contactsByType = await _context.Contacts
-            .Where(c => c.InfluenceTypeId.HasValue)
+            .Include(c => c.Block)
+            .Where(c => c.IsActive && c.Block.Status == BlockStatus.Active && c.InfluenceTypeId.HasValue)
             .GroupBy(c => c.InfluenceTypeId!.Value)
             .Select(g => new { Type = g.Key.ToString(), Count = g.Count() })
             .ToDictionaryAsync(x => x.Type, x => x.Count);
@@ -206,7 +248,7 @@ public class DashboardController : ControllerBase
         var interactionsByBlock = await _context.Interactions
             .Include(i => i.Contact)
                 .ThenInclude(c => c.Block)
-            .Where(i => i.InteractionDate >= lastMonth)
+            .Where(i => i.IsActive && i.Contact.Block.Status == BlockStatus.Active && i.InteractionDate >= lastMonth)
             .GroupBy(i => i.Contact.Block.Name)
             .Select(g => new { Block = g.Key, Count = g.Count() })
             .OrderByDescending(x => x.Count)
@@ -215,7 +257,9 @@ public class DashboardController : ControllerBase
         // Top curators by activity (last month)
         var topCurators = await _context.Interactions
             .Include(i => i.Curator)
-            .Where(i => i.InteractionDate >= lastMonth)
+            .Include(i => i.Contact)
+                .ThenInclude(c => c.Block)
+            .Where(i => i.IsActive && i.Contact.Block.Status == BlockStatus.Active && i.InteractionDate >= lastMonth)
             .GroupBy(i => i.Curator.Login)
             .Select(g => new { Curator = g.Key, InteractionCount = g.Count() })
             .OrderByDescending(x => x.InteractionCount)
@@ -267,6 +311,10 @@ public class DashboardController : ControllerBase
             StatusChangeDynamics = statusChanges,
             RecentAuditLogs = recentAuditLogs
         };
+
+        stopwatch.Stop();
+        _logger.LogInformation("[Dashboard] GetAdminDashboard completed. User: {UserLogin} (ID: {UserId}), TotalContacts: {TotalContacts}, TotalBlocks: {TotalBlocks}, TotalUsers: {TotalUsers}, Duration: {Duration}ms",
+            userLogin, userId, totalContacts, totalBlocks, totalUsers, stopwatch.ElapsedMilliseconds);
 
         return Ok(dashboard);
     }

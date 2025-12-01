@@ -2,34 +2,51 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import Link from 'next/link';
+import { useTranslations } from 'next-intl';
+import Navigation, { MobileNavigation, Breadcrumb } from '@/components/ui/Navigation';
 import { UserRole } from '@/types/api';
 
-interface NavItem {
-  label: string;
-  href: string;
-  roles?: UserRole[];
-  icon?: string;
-}
+// Generate breadcrumb items based on current path
+function generateBreadcrumbs(pathname: string, t: (key: string) => string): Array<{ label: string; href?: string }> {
+  const pathSegments = pathname.split('/').filter(Boolean);
+  const breadcrumbs = [{ label: t('navigation.home'), href: '/' }];
 
-const navItems: NavItem[] = [
-  { label: 'Панель управления', href: '/dashboard', icon: '📊' },
-  { label: 'Контакты', href: '/contacts', icon: '👥', roles: [UserRole.Admin, UserRole.Curator, UserRole.BackupCurator] },
-  { label: 'Взаимодействия', href: '/interactions', icon: '🤝', roles: [UserRole.Admin, UserRole.Curator, UserRole.BackupCurator] },
-  { label: 'Блоки', href: '/blocks', icon: '📦', roles: [UserRole.Admin] },
-  { label: 'Пользователи', href: '/users', icon: '👤', roles: [UserRole.Admin] },
-  { label: 'Список наблюдения', href: '/watchlist', icon: '⚠️', roles: [UserRole.Admin, UserRole.ThreatAnalyst] },
-  { label: 'Аналитика', href: '/analytics', icon: '📈', roles: [UserRole.Admin] },
-  { label: 'Журнал аудита', href: '/audit-log', icon: '📋', roles: [UserRole.Admin] },
-  { label: 'ЧаВо', href: '/faq', icon: '❓' },
-  { label: 'Справочники', href: '/references', icon: '⚙️', roles: [UserRole.Admin] },
-];
+  if (pathSegments.length === 0) return breadcrumbs;
+
+  const pathMap: Record<string, string> = {
+    contacts: t('navigation.contacts'),
+    interactions: t('navigation.interactions'),
+    blocks: t('navigation.blocks'),
+    users: t('navigation.users'),
+    analytics: t('navigation.analytics'),
+    'audit-log': t('navigation.audit'),
+    dashboard: t('dashboard.title'),
+    settings: t('common.settings'),
+  };
+
+  let currentPath = '';
+  pathSegments.forEach((segment, index) => {
+    currentPath += `/${segment}`;
+    const label = pathMap[segment] || segment;
+
+    if (index === pathSegments.length - 1) {
+      // Last item is not a link
+      breadcrumbs.push({ label, href: '' });
+    } else {
+      breadcrumbs.push({ label, href: currentPath });
+    }
+  });
+
+  return breadcrumbs;
+}
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<any>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
+  const t = useTranslations();
 
   useEffect(() => {
     const userStr = localStorage.getItem('user');
@@ -46,91 +63,113 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     router.push('/login');
   };
 
+  const handleMobileMenuToggle = () => {
+    setMobileMenuOpen(!mobileMenuOpen);
+  };
+
+  const handleMobileMenuClose = () => {
+    setMobileMenuOpen(false);
+  };
+
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
       </div>
     );
   }
 
-  const filteredNavItems = navItems.filter(item => {
-    if (!item.roles) return true;
-    return item.roles.includes(user.role as UserRole);
-  });
+  const breadcrumbs = generateBreadcrumbs(pathname, t);
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-slate-50">
       {/* Top Navigation */}
-      <nav className="bg-white shadow-sm border-b border-gray-200 fixed top-0 w-full z-10">
+      <nav className="bg-white shadow-sm border-b border-slate-200 fixed top-0 w-full z-20">
         <div className="px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex items-center">
+              {/* Mobile menu button */}
               <button
-                onClick={() => setSidebarOpen(!sidebarOpen)}
-                className="p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100"
+                onClick={handleMobileMenuToggle}
+                className="lg:hidden p-2 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 mr-2"
+                aria-label={t('common.open_mobile_menu') || 'Открыть мобильное меню'}
               >
                 <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                 </svg>
               </button>
-              <h1 className="ml-4 text-2xl font-bold text-indigo-600">КУРАТОР</h1>
+
+              {/* Desktop sidebar toggle */}
+              <button
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                className="hidden lg:block p-2 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                aria-label={t('common.toggle_sidebar') || 'Переключить боковую панель'}
+              >
+                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              </button>
+
+              <h1 className="ml-4 text-2xl font-bold text-blue-600">Kurator</h1>
             </div>
+
             <div className="flex items-center space-x-4">
-              <span className="text-gray-700">
-                {user.login} ({user.role})
-              </span>
+              {/* User info */}
+              <div className="hidden md:flex items-center space-x-2">
+                <span className="text-slate-800 text-sm font-medium">
+                  {user.login}
+                </span>
+                <span className="text-xs text-slate-700 bg-slate-100 px-2 py-1 rounded">
+                  {user.role}
+                </span>
+              </div>
+
+              {/* Logout button */}
               <button
                 onClick={handleLogout}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm font-medium"
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
               >
-                Выход
+                {t('common.logout')}
               </button>
             </div>
           </div>
         </div>
       </nav>
 
+      {/* Mobile Navigation */}
+      <MobileNavigation
+        isOpen={mobileMenuOpen}
+        onClose={handleMobileMenuClose}
+        user={{
+          name: user.login,
+          email: user.email || '',
+          role: user.role,
+        }}
+        onLogout={handleLogout}
+      />
+
       <div className="flex pt-16">
-        {/* Sidebar */}
+        {/* Desktop Sidebar */}
         <aside
-          className={`${
+          className={`hidden lg:block ${
             sidebarOpen ? 'w-64' : 'w-16'
-          } bg-white shadow-lg transition-all duration-300 fixed left-0 h-full overflow-y-auto`}
+          } bg-white shadow-sm border-r border-slate-200 fixed left-0 h-full overflow-y-auto transition-all duration-300 z-10`}
         >
-          <nav className="mt-5">
-            <div className="px-2">
-              {filteredNavItems.map((item) => {
-                const isActive = pathname === item.href;
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={`
-                      group flex items-center px-2 py-2 text-sm font-medium rounded-md mb-1
-                      ${isActive
-                        ? 'bg-indigo-100 text-indigo-700'
-                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                      }
-                    `}
-                  >
-                    {item.icon && (
-                      <span className="mr-3 text-lg" role="img" aria-label={item.label}>
-                        {item.icon}
-                      </span>
-                    )}
-                    {sidebarOpen && <span>{item.label}</span>}
-                  </Link>
-                );
-              })}
-            </div>
-          </nav>
+          <Navigation />
         </aside>
 
         {/* Main Content */}
-        <main className={`flex-1 ${sidebarOpen ? 'ml-64' : 'ml-16'} transition-all duration-300`}>
-          <div className="p-6">
-            {children}
+        <main className={`flex-1 ${sidebarOpen ? 'lg:ml-64' : 'lg:ml-16'} transition-all duration-300`}>
+          <div className="min-h-screen">
+            {/* Breadcrumb Navigation */}
+            <div className="bg-white border-b border-slate-200 px-4 sm:px-6 lg:px-8 py-3">
+              <Breadcrumb items={breadcrumbs} />
+            </div>
+
+            {/* Page Content */}
+            <div className="p-4 sm:p-6 lg:p-8">
+              {children}
+            </div>
           </div>
         </main>
       </div>

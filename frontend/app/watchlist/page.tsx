@@ -4,12 +4,12 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, Search, Shield, AlertTriangle, Calendar, User, Edit, Trash2, Eye, Filter } from 'lucide-react';
 import { api } from '@/services/api';
-import { WatchlistDto, RiskLevel, MonitoringFrequency, ThreatSphere } from '@/types/api';
+import { WatchlistEntry, RiskLevel, MonitoringFrequency, ThreatSphere } from '@/types/api';
 
 export default function WatchlistPage() {
   const router = useRouter();
-  const [watchlist, setWatchlist] = useState<WatchlistDto[]>([]);
-  const [filteredWatchlist, setFilteredWatchlist] = useState<WatchlistDto[]>([]);
+  const [watchlist, setWatchlist] = useState<WatchlistEntry[]>([]);
+  const [filteredWatchlist, setFilteredWatchlist] = useState<WatchlistEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedRiskLevel, setSelectedRiskLevel] = useState<RiskLevel | ''>('');
@@ -27,8 +27,8 @@ export default function WatchlistPage() {
     try {
       setIsLoading(true);
       const response = await api.get('/watchlist');
-      if (response.data?.items) {
-        setWatchlist(response.data.items);
+      if (response.data?.data) {
+        setWatchlist(response.data.data);
       }
     } catch (error) {
       console.error('Failed to load watchlist:', error);
@@ -42,9 +42,9 @@ export default function WatchlistPage() {
 
     if (searchTerm) {
       filtered = filtered.filter(item =>
-        item.fullNameOrAlias.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.roleOrStatus?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.threatSource.toLowerCase().includes(searchTerm.toLowerCase())
+        item.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.roleStatus?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.threatSource?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
@@ -53,7 +53,7 @@ export default function WatchlistPage() {
     }
 
     if (selectedThreatSphere) {
-      filtered = filtered.filter(item => item.threatSphere === selectedThreatSphere);
+      filtered = filtered.filter(item => item.riskSphereId === Number(selectedThreatSphere));
     }
 
     setFilteredWatchlist(filtered);
@@ -87,23 +87,10 @@ export default function WatchlistPage() {
     }
   };
 
-  const getThreatSphereIcon = (sphere: ThreatSphere) => {
-    switch (sphere) {
-      case ThreatSphere.Media:
-        return '📰';
-      case ThreatSphere.Legal:
-        return '⚖️';
-      case ThreatSphere.Political:
-        return '🏛️';
-      case ThreatSphere.Economic:
-        return '💼';
-      case ThreatSphere.Security:
-        return '🛡️';
-      case ThreatSphere.Communication:
-        return '📡';
-      default:
-        return '❓';
-    }
+  const getThreatSphereIcon = (riskSphereId?: number) => {
+    // Note: riskSphereId references ReferenceValue table
+    // This is a placeholder - in production, icons would be based on reference values
+    return '🎯';
   };
 
   const isCheckOverdue = (nextCheckDate: string) => {
@@ -204,29 +191,29 @@ export default function WatchlistPage() {
                   <div className="flex justify-between items-start mb-4">
                     <div>
                       <div className="flex items-center gap-3 mb-2">
-                        <span className="text-2xl">{getThreatSphereIcon(item.threatSphere)}</span>
+                        <span className="text-2xl">{getThreatSphereIcon(item.riskSphereId)}</span>
                         <div>
                           <h3 className="text-lg font-semibold text-gray-900">
-                            {item.fullNameOrAlias}
+                            {item.fullName}
                           </h3>
-                          <p className="text-sm text-gray-600">{item.roleOrStatus}</p>
+                          <p className="text-sm text-gray-600">{item.roleStatus}</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-4 text-sm">
-                        <span className={`px-2 py-1 rounded-full border ${getRiskLevelColor(item.riskLevel)}`}>
-                          {item.riskLevel === RiskLevel.Critical ? 'Критический риск' :
-                           item.riskLevel === RiskLevel.High ? 'Высокий риск' :
-                           item.riskLevel === RiskLevel.Medium ? 'Средний риск' :
-                           item.riskLevel === RiskLevel.Low ? 'Низкий риск' : 'Риск'}
+                        <span className={`px-2 py-1 rounded-full border ${getRiskLevelColor(item.riskLevel as RiskLevel)}`}>
+                          {item.riskLevel === 'Critical' ? 'Критический риск' :
+                           item.riskLevel === 'High' ? 'Высокий риск' :
+                           item.riskLevel === 'Medium' ? 'Средний риск' :
+                           item.riskLevel === 'Low' ? 'Низкий риск' : item.riskLevel}
                         </span>
                         <span className="text-gray-600">
-                          {item.threatSphere}
+                          Сфера риска: {item.riskSphereId || 'Не указана'}
                         </span>
                         <span className="text-gray-600">
-                          Мониторинг: {item.monitoringFrequency === MonitoringFrequency.Daily ? 'Ежедневно' :
-                                       item.monitoringFrequency === MonitoringFrequency.Weekly ? 'Еженедельно' :
-                                       item.monitoringFrequency === MonitoringFrequency.Monthly ? 'Ежемесячно' :
-                                       item.monitoringFrequency === MonitoringFrequency.Quarterly ? 'Ежеквартально' :
+                          Мониторинг: {item.monitoringFrequency === 'Weekly' ? 'Еженедельно' :
+                                       item.monitoringFrequency === 'Monthly' ? 'Ежемесячно' :
+                                       item.monitoringFrequency === 'Quarterly' ? 'Ежеквартально' :
+                                       item.monitoringFrequency === 'AdHoc' ? 'По необходимости' :
                                        item.monitoringFrequency}
                         </span>
                       </div>
@@ -259,13 +246,13 @@ export default function WatchlistPage() {
                   <div className="border-t pt-4">
                     <div className="mb-3">
                       <p className="text-sm font-medium text-gray-700 mb-1">Источник угрозы:</p>
-                      <p className="text-sm text-gray-600">{item.threatSource}</p>
+                      <p className="text-sm text-gray-600">{item.threatSource || 'Не указан'}</p>
                     </div>
 
-                    {item.progressDynamics && (
+                    {item.dynamicsDescription && (
                       <div className="mb-3">
                         <p className="text-sm font-medium text-gray-700 mb-1">Текущий статус:</p>
-                        <p className="text-sm text-gray-600">{item.progressDynamics}</p>
+                        <p className="text-sm text-gray-600">{item.dynamicsDescription}</p>
                       </div>
                     )}
 
@@ -273,7 +260,7 @@ export default function WatchlistPage() {
                       <div>
                         <p className="text-gray-500">Начало конфликта</p>
                         <p className="font-medium">
-                          {new Date(item.conflictStartDate).toLocaleDateString()}
+                          {item.conflictDate ? new Date(item.conflictDate).toLocaleDateString() : 'Не указано'}
                         </p>
                       </div>
                       <div>
@@ -286,17 +273,17 @@ export default function WatchlistPage() {
                       </div>
                       <div>
                         <p className="text-gray-500">Следующая проверка</p>
-                        <p className={`font-medium ${isCheckOverdue(item.nextCheckDate) ? 'text-red-600' : ''}`}>
+                        <p className={`font-medium ${item.nextCheckDate && isCheckOverdue(item.nextCheckDate) ? 'text-red-600' : ''}`}>
                           <Calendar className="inline h-3 w-3 mr-1" />
-                          {new Date(item.nextCheckDate).toLocaleDateString()}
-                          {isCheckOverdue(item.nextCheckDate) && ' (Просрочено)'}
+                          {item.nextCheckDate ? new Date(item.nextCheckDate).toLocaleDateString() : 'Не указано'}
+                          {item.requiresCheck && ' (Просрочено)'}
                         </p>
                       </div>
                       <div>
                         <p className="text-gray-500">Наблюдатель</p>
                         <p className="font-medium">
                           <User className="inline h-3 w-3 mr-1" />
-                          {item.watchOwnerName || 'Не назначен'}
+                          {item.watchOwnerLogin || 'Не назначен'}
                         </p>
                       </div>
                     </div>

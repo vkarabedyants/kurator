@@ -34,11 +34,19 @@ export default function AuditLogPage() {
           pageSize: 500 // Load more initially
         }
       });
-      if (response.data?.items) {
-        setAuditLogs(response.data.items);
+      // Backend returns { data: [...], page, pageSize, total, totalPages }
+      const logs = response.data?.data || response.data?.items || [];
+      if (logs.length > 0) {
+        // Map backend response to frontend DTO format (userLogin -> userName)
+        const mappedLogs = logs.map((log: { id: number; userId: number; userLogin?: string; userName?: string; actionType: string; entityType: string; entityId?: string; timestamp: string; oldValue?: string; newValue?: string }) => ({
+          ...log,
+          userName: log.userLogin || log.userName || 'Unknown',
+          actionType: log.actionType as AuditActionType
+        }));
+        setAuditLogs(mappedLogs);
 
         // Extract unique users for filter
-        const uniqueUsers = [...new Set(response.data.items.map((log: AuditLogDto) => log.userName))] as string[];
+        const uniqueUsers = [...new Set(mappedLogs.map((log: AuditLogDto) => log.userName))] as string[];
         setUsers(uniqueUsers);
       }
     } catch (error) {

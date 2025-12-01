@@ -1,32 +1,97 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Save, User, Building2, Hash, Phone, FileText, AlertCircle } from 'lucide-react';
 import { api } from '@/services/api';
-import { CreateContactDto, InfluenceStatus, InfluenceType, CommunicationChannel, ContactSource } from '@/types/api';
+import { CreateContactRequest } from '@/types/api';
+
+interface Block {
+  id: number;
+  name: string;
+  code: string;
+}
+
+interface ReferenceValue {
+  id: number;
+  category: string;
+  code: string;
+  value: string;
+  description?: string;
+  order: number;
+  isActive: boolean;
+}
+
+interface ReferencesByCategory {
+  [category: string]: ReferenceValue[];
+}
 
 export default function NewContactPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingData, setIsLoadingData] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [formData, setFormData] = useState<CreateContactDto>({
+  const [blocks, setBlocks] = useState<Block[]>([]);
+  const [references, setReferences] = useState<ReferencesByCategory>({});
+
+  const [formData, setFormData] = useState<CreateContactRequest>({
+    blockId: 0,
     fullName: '',
-    organization: '',
-    position: '',
-    influenceStatus: InfluenceStatus.C,
-    influenceType: InfluenceType.Functional,
-    howCanHelp: '',
-    communicationChannel: CommunicationChannel.Personal,
-    contactSource: ContactSource.PersonalAcquaintance,
-    nextTouchDate: '',
-    notes: ''
+    organizationId: null,
+    position: null,
+    influenceStatusId: null,
+    influenceTypeId: null,
+    usefulnessDescription: null,
+    communicationChannelId: null,
+    contactSourceId: null,
+    nextTouchDate: null,
+    notes: null
   });
+
+  useEffect(() => {
+    loadInitialData();
+  }, []);
+
+  const loadInitialData = async () => {
+    try {
+      setIsLoadingData(true);
+
+      // Load user's accessible blocks
+      const blocksResponse = await api.get<Block[]>('/blocks/my-blocks');
+      setBlocks(blocksResponse.data || []);
+
+      // Load reference values
+      const referencesResponse = await api.get<ReferencesByCategory>('/references/by-category');
+      setReferences(referencesResponse.data || {});
+
+      // Set default blockId if only one block is available
+      if (blocksResponse.data && blocksResponse.data.length === 1) {
+        setFormData(prev => ({ ...prev, blockId: blocksResponse.data[0].id }));
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Не удалось загрузить данные');
+    } finally {
+      setIsLoadingData(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!formData.blockId) {
+      setError('Пожалуйста, выберите блок');
+      return;
+    }
+
+    if (!formData.fullName.trim()) {
+      setError('Пожалуйста, введите полное имя');
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
+
+    console.log('Sending contact creation request with data:', JSON.stringify(formData, null, 2));
 
     try {
       const response = await api.post('/contacts', formData);
@@ -34,15 +99,49 @@ export default function NewContactPage() {
         router.push(`/contacts/${response.data.id}`);
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Не удалось создать контакт');
+      const errorMessage = err.response?.data?.error?.message || err.response?.data?.message || 'Не удалось создать контакт';
+      setError(errorMessage);
+      console.error('Error creating contact:', err.response?.data);
+      console.error('Full error:', err);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleChange = (field: keyof CreateContactDto, value: any) => {
+  const handleChange = (field: keyof CreateContactRequest, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
+
+  if (isLoadingData) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Загрузка данных...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (blocks.length === 0) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="bg-white shadow rounded-lg p-8 max-w-md">
+          <div className="text-center">
+            <AlertCircle className="h-12 w-12 text-yellow-600 mx-auto mb-4" />
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">Нет доступных блоков</h2>
+            <p className="text-gray-600 mb-6">У вас нет назначенных блоков для создания контактов.</p>
+            <button
+              onClick={() => router.back()}
+              className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+            >
+              Назад
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -72,6 +171,30 @@ export default function NewContactPage() {
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="bg-white shadow rounded-lg p-6 space-y-6">
+          {/* Block Selection */}
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold text-gray-900 border-b pb-2">Блок</h2>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Блок *
+              </label>
+              <select
+                required
+                value={formData.blockId}
+                onChange={(e) => handleChange('blockId', parseInt(e.target.value))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value={0}>Выберите блок</option>
+                {blocks.map(block => (
+                  <option key={block.id} value={block.id}>
+                    {block.name} ({block.code})
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
           {/* Basic Information */}
           <div className="space-y-4">
             <h2 className="text-lg font-semibold text-gray-900 border-b pb-2">Основная информация</h2>
@@ -80,7 +203,7 @@ export default function NewContactPage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   <User className="inline h-4 w-4 mr-1" />
-                  Полное имя *
+                  Полное имя (ФИО) *
                 </label>
                 <input
                   type="text"
@@ -90,33 +213,37 @@ export default function NewContactPage() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="Введите полное имя"
                 />
+                <p className="text-xs text-gray-500 mt-1">Будет зашифровано</p>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   <Building2 className="inline h-4 w-4 mr-1" />
-                  Организация *
+                  Организация
                 </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.organization}
-                  onChange={(e) => handleChange('organization', e.target.value)}
+                <select
+                  value={formData.organizationId || ''}
+                  onChange={(e) => handleChange('organizationId', e.target.value ? parseInt(e.target.value) : null)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Введите организацию"
-                />
+                >
+                  <option value="">Не выбрано</option>
+                  {references.Organization?.map(ref => (
+                    <option key={ref.id} value={ref.id}>
+                      {ref.value}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   <Hash className="inline h-4 w-4 mr-1" />
-                  Должность/Роль *
+                  Должность/Роль
                 </label>
                 <input
                   type="text"
-                  required
-                  value={formData.position}
-                  onChange={(e) => handleChange('position', e.target.value)}
+                  value={formData.position || ''}
+                  onChange={(e) => handleChange('position', e.target.value || null)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="Введите должность или роль"
                 />
@@ -131,46 +258,47 @@ export default function NewContactPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Статус влияния *
+                  Статус влияния
                 </label>
                 <select
-                  required
-                  value={formData.influenceStatus}
-                  onChange={(e) => handleChange('influenceStatus', e.target.value)}
+                  value={formData.influenceStatusId || ''}
+                  onChange={(e) => handleChange('influenceStatusId', e.target.value ? parseInt(e.target.value) : null)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value={InfluenceStatus.A}>A - Высокое влияние</option>
-                  <option value={InfluenceStatus.B}>B - Среднее влияние</option>
-                  <option value={InfluenceStatus.C}>C - Низкое влияние</option>
-                  <option value={InfluenceStatus.D}>D - Нет влияния</option>
+                  <option value="">Не выбрано</option>
+                  {references.InfluenceStatus?.map(ref => (
+                    <option key={ref.id} value={ref.id}>
+                      {ref.value} {ref.description && `- ${ref.description}`}
+                    </option>
+                  ))}
                 </select>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Тип влияния *
+                  Тип влияния
                 </label>
                 <select
-                  required
-                  value={formData.influenceType}
-                  onChange={(e) => handleChange('influenceType', e.target.value)}
+                  value={formData.influenceTypeId || ''}
+                  onChange={(e) => handleChange('influenceTypeId', e.target.value ? parseInt(e.target.value) : null)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value={InfluenceType.Navigational}>Навигационный - Обеспечивает доступ</option>
-                  <option value={InfluenceType.Interpretational}>Интерпретационный - Помогает понять позиции</option>
-                  <option value={InfluenceType.Functional}>Функциональный - Помогает решать вопросы</option>
-                  <option value={InfluenceType.Reputational}>Репутационный - Влияет на общественное восприятие</option>
-                  <option value={InfluenceType.Analytical}>Аналитический - Предоставляет стратегическую оценку</option>
+                  <option value="">Не выбрано</option>
+                  {references.InfluenceType?.map(ref => (
+                    <option key={ref.id} value={ref.id}>
+                      {ref.value} {ref.description && `- ${ref.description}`}
+                    </option>
+                  ))}
                 </select>
               </div>
 
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Чем может помочь
+                  Чем может помочь (полезность)
                 </label>
                 <textarea
-                  value={formData.howCanHelp}
-                  onChange={(e) => handleChange('howCanHelp', e.target.value)}
+                  value={formData.usefulnessDescription || ''}
+                  onChange={(e) => handleChange('usefulnessDescription', e.target.value || null)}
                   rows={3}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="Опишите, чем этот контакт может быть полезен..."
@@ -187,38 +315,37 @@ export default function NewContactPage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   <Phone className="inline h-4 w-4 mr-1" />
-                  Канал коммуникации *
+                  Канал коммуникации
                 </label>
                 <select
-                  required
-                  value={formData.communicationChannel}
-                  onChange={(e) => handleChange('communicationChannel', e.target.value)}
+                  value={formData.communicationChannelId || ''}
+                  onChange={(e) => handleChange('communicationChannelId', e.target.value ? parseInt(e.target.value) : null)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value={CommunicationChannel.Official}>Официальный</option>
-                  <option value={CommunicationChannel.ThroughIntermediary}>Через посредника</option>
-                  <option value={CommunicationChannel.ThroughAssociation}>Через ассоциацию</option>
-                  <option value={CommunicationChannel.Personal}>Личный</option>
-                  <option value={CommunicationChannel.Legal}>Правовой</option>
+                  <option value="">Не выбрано</option>
+                  {references.CommunicationChannel?.map(ref => (
+                    <option key={ref.id} value={ref.id}>
+                      {ref.value}
+                    </option>
+                  ))}
                 </select>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Источник контакта *
+                  Источник контакта
                 </label>
                 <select
-                  required
-                  value={formData.contactSource}
-                  onChange={(e) => handleChange('contactSource', e.target.value)}
+                  value={formData.contactSourceId || ''}
+                  onChange={(e) => handleChange('contactSourceId', e.target.value ? parseInt(e.target.value) : null)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value={ContactSource.PersonalAcquaintance}>Личное знакомство</option>
-                  <option value={ContactSource.Association}>Ассоциация</option>
-                  <option value={ContactSource.Recommendation}>Рекомендация</option>
-                  <option value={ContactSource.Event}>Мероприятие</option>
-                  <option value={ContactSource.Media}>СМИ</option>
-                  <option value={ContactSource.Other}>Другое</option>
+                  <option value="">Не выбрано</option>
+                  {references.ContactSource?.map(ref => (
+                    <option key={ref.id} value={ref.id}>
+                      {ref.value}
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -228,8 +355,8 @@ export default function NewContactPage() {
                 </label>
                 <input
                   type="date"
-                  value={formData.nextTouchDate}
-                  onChange={(e) => handleChange('nextTouchDate', e.target.value)}
+                  value={formData.nextTouchDate || ''}
+                  onChange={(e) => handleChange('nextTouchDate', e.target.value || null)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
@@ -246,8 +373,8 @@ export default function NewContactPage() {
                 Конфиденциальные заметки
               </label>
               <textarea
-                value={formData.notes}
-                onChange={(e) => handleChange('notes', e.target.value)}
+                value={formData.notes || ''}
+                onChange={(e) => handleChange('notes', e.target.value || null)}
                 rows={4}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Введите конфиденциальные заметки об этом контакте..."

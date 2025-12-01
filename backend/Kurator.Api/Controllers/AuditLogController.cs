@@ -7,7 +7,7 @@ using Kurator.Infrastructure.Data;
 namespace Kurator.Api.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/audit-log")]
 [Authorize(Roles = "Admin")]
 public class AuditLogController : ControllerBase
 {
@@ -46,11 +46,18 @@ public class AuditLogController : ControllerBase
         if (!string.IsNullOrEmpty(entityType))
             query = query.Where(a => a.EntityType == entityType);
 
+        // Convert dates to UTC to satisfy PostgreSQL timestamp with time zone requirements
         if (fromDate.HasValue)
-            query = query.Where(a => a.Timestamp >= fromDate.Value);
+        {
+            var fromDateUtc = DateTime.SpecifyKind(fromDate.Value, DateTimeKind.Utc);
+            query = query.Where(a => a.Timestamp >= fromDateUtc);
+        }
 
         if (toDate.HasValue)
-            query = query.Where(a => a.Timestamp <= toDate.Value);
+        {
+            var toDateUtc = DateTime.SpecifyKind(toDate.Value, DateTimeKind.Utc);
+            query = query.Where(a => a.Timestamp <= toDateUtc);
+        }
 
         // Filter by block (for contacts and interactions)
         if (blockId.HasValue)

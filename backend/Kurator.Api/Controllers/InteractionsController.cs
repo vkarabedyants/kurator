@@ -51,8 +51,8 @@ public class InteractionsController : ControllerBase
             .Include(i => i.Contact)
                 .ThenInclude(c => c.Block)
             .Include(i => i.Curator)
-            // ИЗМЕНЕНО: Добавлен фильтр по IsActive
-            .Where(i => i.IsActive)
+            // ИЗМЕНЕНО: Добавлен фильтр по IsActive и статусу блока
+            .Where(i => i.IsActive && i.Contact.Block.Status == BlockStatus.Active)
             .AsQueryable();
 
         // Access control: Curators see only their blocks
@@ -75,11 +75,12 @@ public class InteractionsController : ControllerBase
         if (blockId.HasValue)
             query = query.Where(i => i.Contact.BlockId == blockId.Value);
 
+        // Convert dates to UTC to satisfy PostgreSQL timestamp with time zone requirements
         if (fromDate.HasValue)
-            query = query.Where(i => i.InteractionDate >= fromDate.Value);
+            query = query.Where(i => i.InteractionDate >= DateTime.SpecifyKind(fromDate.Value, DateTimeKind.Utc));
 
         if (toDate.HasValue)
-            query = query.Where(i => i.InteractionDate <= toDate.Value);
+            query = query.Where(i => i.InteractionDate <= DateTime.SpecifyKind(toDate.Value, DateTimeKind.Utc));
 
         // ИЗМЕНЕНО: interactionTypeId и resultId теперь int?
         if (interactionTypeId.HasValue)
@@ -181,7 +182,7 @@ public class InteractionsController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = "Admin,Curator,BackupCurator")]
+    [Authorize(Roles = "Admin,Curator")]
     public async Task<IActionResult> Create([FromBody] CreateInteractionRequest request)
     {
         var userId = GetUserId();
@@ -313,7 +314,7 @@ public class InteractionsController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    [Authorize(Roles = "Admin,Curator,BackupCurator")]
+    [Authorize(Roles = "Admin,Curator")]
     public async Task<IActionResult> Update(int id, [FromBody] UpdateInteractionRequest request)
     {
         var userId = GetUserId();
@@ -421,7 +422,7 @@ public class InteractionsController : ControllerBase
     }
 
     [HttpGet("recent")]
-    [Authorize(Roles = "Admin,Curator,BackupCurator")]
+    [Authorize(Roles = "Admin,Curator")]
     public async Task<IActionResult> GetRecentInteractions([FromQuery] int count = 5)
     {
         var userId = GetUserId();

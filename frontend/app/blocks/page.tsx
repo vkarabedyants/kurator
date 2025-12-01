@@ -35,7 +35,7 @@ export default function BlocksPage() {
         usersApi.getAll()
       ]);
       setBlocks(blocksData);
-      setUsers(usersData.filter(u => u.role === 'Curator' || u.role === 'BackupCurator'));
+      setUsers(usersData.filter(u => u.role === 'Curator'));
     } catch (err: any) {
       setError(err.message || 'Не удалось загрузить данные');
     } finally {
@@ -47,28 +47,58 @@ export default function BlocksPage() {
     e.preventDefault();
     try {
       if (editingBlock) {
-        await blocksApi.update(editingBlock.id, formData);
+        // Update block first
+        await blocksApi.update(editingBlock.id, {
+          name: formData.name,
+          description: formData.description,
+          status: formData.status.toString()
+        });
+        // Handle curator assignments separately if needed
+        // Note: Curator assignments are now handled via /blocks/{id}/curators endpoint
       } else {
-        await blocksApi.create(formData);
+        // Create block
+        const result = await blocksApi.create({
+          name: formData.name,
+          code: formData.code,
+          description: formData.description,
+          status: formData.status.toString()
+        });
+        // Assign curators after block creation if specified
+        if (result.id && formData.primaryCuratorId > 0) {
+          await blocksApi.assignCurator(result.id, {
+            userId: formData.primaryCuratorId,
+            curatorType: 'Primary'
+          });
+        }
+        if (result.id && formData.backupCuratorId > 0) {
+          await blocksApi.assignCurator(result.id, {
+            userId: formData.backupCuratorId,
+            curatorType: 'Backup'
+          });
+        }
       }
       setShowAddForm(false);
       setEditingBlock(null);
       resetForm();
       fetchData();
     } catch (err: any) {
-      alert('Не удалось сохранить блок: ' + err.message);
+      alert('Не удалось сохранить блок: ' + (err.response?.data?.message || err.message));
     }
   };
 
   const handleEdit = (block: Block) => {
     setEditingBlock(block);
+    // Find primary and backup curators from the curators array
+    const primaryCurator = block.curators?.find(c => c.curatorType === 'Primary');
+    const backupCurator = block.curators?.find(c => c.curatorType === 'Backup');
+
     setFormData({
       name: block.name,
       description: block.description || '',
       code: block.code,
-      status: block.status,
-      primaryCuratorId: block.primaryCuratorId || 0,
-      backupCuratorId: block.backupCuratorId || 0,
+      status: block.status as BlockStatus,
+      primaryCuratorId: primaryCurator?.userId || 0,
+      backupCuratorId: backupCurator?.userId || 0,
     });
     setShowAddForm(true);
   };
@@ -253,11 +283,11 @@ export default function BlocksPage() {
                   <div className="space-y-1 text-sm">
                     <p className="text-gray-700">
                       <span className="font-medium">Основной:</span>{' '}
-                      {block.primaryCurator?.login || 'Не назначен'}
+                      {block.curators?.find(c => c.curatorType === 'Primary')?.userLogin || 'Не назначен'}
                     </p>
                     <p className="text-gray-700">
                       <span className="font-medium">Резервный:</span>{' '}
-                      {block.backupCurator?.login || 'Не назначен'}
+                      {block.curators?.find(c => c.curatorType === 'Backup')?.userLogin || 'Не назначен'}
                     </p>
                     <p className="text-gray-500 text-xs">
                       Создано: {new Date(block.createdAt).toLocaleDateString()}

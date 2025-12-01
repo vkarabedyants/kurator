@@ -46,6 +46,8 @@ public class UsersController : ControllerBase
                 CreatedAt = u.CreatedAt,
                 LastLoginAt = u.LastLoginAt,
                 IsActive = u.IsActive,
+                IsFirstLogin = u.IsFirstLogin,
+                MfaEnabled = u.MfaEnabled,
                 // ИЗМЕНЕНО: Получаем блоки через BlockAssignments с разделением по CuratorType
                 PrimaryBlockIds = u.BlockAssignments
                     .Where(ba => ba.CuratorType == CuratorType.Primary)
@@ -85,6 +87,8 @@ public class UsersController : ControllerBase
                 CreatedAt = u.CreatedAt,
                 LastLoginAt = u.LastLoginAt,
                 IsActive = u.IsActive,
+                IsFirstLogin = u.IsFirstLogin,
+                MfaEnabled = u.MfaEnabled,
                 PrimaryBlockIds = u.BlockAssignments
                     .Where(ba => ba.CuratorType == CuratorType.Primary)
                     .Select(ba => ba.BlockId)
@@ -332,6 +336,46 @@ public class UsersController : ControllerBase
             return NotFound();
 
         return Ok(user);
+    }
+
+    [HttpPost("{id}/toggle-active")]
+    public async Task<IActionResult> ToggleActive(int id)
+    {
+        var adminUserId = GetUserId();
+        var adminLogin = GetUserLogin();
+
+        var user = await _context.Users.FindAsync(id);
+        if (user == null)
+            return NotFound();
+
+        // Don't allow deactivating yourself
+        if (user.Id == adminUserId)
+        {
+            return BadRequest(new { message = "Cannot deactivate your own account" });
+        }
+
+        var oldStatus = user.IsActive;
+        user.IsActive = !user.IsActive;
+
+        // Create audit log
+        var auditLog = new AuditLog
+        {
+            UserId = adminUserId,
+            Action = AuditActionType.Update,
+            EntityType = "User",
+            EntityId = user.Id.ToString(),
+            Timestamp = DateTime.UtcNow,
+            OldValuesJson = $"IsActive: {oldStatus}",
+            NewValuesJson = $"IsActive: {user.IsActive}"
+        };
+        _context.AuditLogs.Add(auditLog);
+
+        await _context.SaveChangesAsync();
+
+        _logger.LogInformation("User {Login} {Action} by {Admin}",
+            user.Login, user.IsActive ? "activated" : "deactivated", adminLogin);
+
+        return Ok(new { isActive = user.IsActive });
     }
 
     [HttpGet("statistics")]

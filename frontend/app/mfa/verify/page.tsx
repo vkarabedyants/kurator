@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { authApi } from '@/services/api';
 import type { VerifyMfaRequest } from '@/types/api';
 
@@ -12,6 +13,7 @@ export default function MfaVerifyPage() {
   const [verificationData, setVerificationData] = useState<any>(null);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const router = useRouter();
+  const t = useTranslations();
 
   useEffect(() => {
     // Получаем данные из localStorage
@@ -88,7 +90,14 @@ export default function MfaVerifyPage() {
       // Переход на дашборд
       router.push('/dashboard');
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Неверный код MFA');
+      const errorMessage = err.response?.data?.message;
+      if (errorMessage?.includes('Invalid MFA code')) {
+        setError(t('auth.mfa_verify_error'));
+      } else if (errorMessage?.includes('not found')) {
+        setError(t('errors.not_found'));
+      } else {
+        setError(errorMessage || t('auth.mfa_verify_error'));
+      }
       setCode(['', '', '', '', '', '']);
       inputRefs.current[0]?.focus();
     } finally {
@@ -117,14 +126,14 @@ export default function MfaVerifyPage() {
       <div className="max-w-md w-full space-y-8 p-8 bg-white rounded-lg shadow-lg">
         <div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Двухфакторная аутентификация
+            {t('auth.mfa_verify_title')}
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
-            Введите 6-значный код из приложения-аутентификатора
+            {t('auth.mfa_verify_description')}
           </p>
           {verificationData.login && (
             <p className="mt-1 text-center text-xs text-gray-500">
-              Вход для пользователя: <strong>{verificationData.login}</strong>
+              {t('auth.mfa_verify_user', { user: verificationData.login })}
             </p>
           )}
         </div>
@@ -145,12 +154,14 @@ export default function MfaVerifyPage() {
                 }}
                 type="text"
                 inputMode="numeric"
+                pattern="[0-9]*"
                 maxLength={1}
                 value={digit}
                 onChange={(e) => handleCodeChange(index, e.target.value)}
                 onKeyDown={(e) => handleKeyDown(index, e)}
                 onPaste={index === 0 ? handlePaste : undefined}
                 disabled={loading}
+                placeholder={index === 0 ? t('auth.mfa_verify_code_placeholder') : ''}
                 className="w-12 h-14 text-center text-2xl font-bold border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
               />
             ))}
@@ -162,7 +173,7 @@ export default function MfaVerifyPage() {
               disabled={loading || code.some(digit => digit === '')}
               className="w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? 'Проверка...' : 'Войти'}
+              {loading ? t('auth.mfa_verify_loading') : t('auth.mfa_verify_button')}
             </button>
 
             <button
@@ -174,14 +185,13 @@ export default function MfaVerifyPage() {
               }}
               className="w-full flex justify-center py-2 px-4 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
             >
-              Вернуться к входу
+              {t('auth.mfa_verify_back_to_login')}
             </button>
           </div>
 
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <p className="text-blue-800 text-sm">
-              <strong>Совет:</strong> Откройте приложение-аутентификатор на вашем устройстве
-              и введите текущий 6-значный код для KURATOR.
+              <strong>{t('auth.mfa_verify_tip_title')}:</strong> {t('auth.mfa_verify_tip_description')}
             </p>
           </div>
         </form>

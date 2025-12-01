@@ -38,7 +38,7 @@ test.describe('KURATOR Smoke Tests', () => {
     const dashboardPage = new DashboardPage(page);
 
     await loginPage.goto();
-    await loginPage.login('admin', 'admin123');
+    await loginPage.login('admin', 'Admin123!');
 
     // Wait for redirect to dashboard
     await loginPage.waitForDashboardRedirect();
@@ -71,7 +71,7 @@ test.describe('KURATOR Smoke Tests', () => {
 
     // Login as admin
     await loginPage.goto();
-    await loginPage.login('admin', 'admin123');
+    await loginPage.login('admin', 'Admin123!');
     await loginPage.waitForDashboardRedirect();
 
     // Wait for dashboard to load
@@ -92,7 +92,7 @@ test.describe('KURATOR Smoke Tests', () => {
 
     // Login
     await loginPage.goto();
-    await loginPage.login('admin', 'admin123');
+    await loginPage.login('admin', 'Admin123!');
     await loginPage.waitForDashboardRedirect();
     await dashboardPage.waitForLoad();
 
@@ -114,7 +114,7 @@ test.describe('KURATOR Smoke Tests', () => {
 
     // Login
     await loginPage.goto();
-    await loginPage.login('admin', 'admin123');
+    await loginPage.login('admin', 'Admin123!');
     await loginPage.waitForDashboardRedirect();
     await dashboardPage.waitForLoad();
 
@@ -136,7 +136,7 @@ test.describe('KURATOR Smoke Tests', () => {
 
     // Login as admin
     await loginPage.goto();
-    await loginPage.login('admin', 'admin123');
+    await loginPage.login('admin', 'Admin123!');
     await loginPage.waitForDashboardRedirect();
     await dashboardPage.waitForLoad();
 
@@ -158,7 +158,7 @@ test.describe('KURATOR Smoke Tests', () => {
 
     // Login as admin
     await loginPage.goto();
-    await loginPage.login('admin', 'admin123');
+    await loginPage.login('admin', 'Admin123!');
     await loginPage.waitForDashboardRedirect();
     await dashboardPage.waitForLoad();
 
@@ -193,7 +193,7 @@ test.describe('KURATOR Smoke Tests', () => {
       route.abort('failed');
     });
 
-    await loginPage.login('admin', 'admin123');
+    await loginPage.login('admin', 'Admin123!');
 
     // Wait for error handling
     await page.waitForTimeout(2000);
@@ -211,7 +211,7 @@ test.describe('KURATOR Critical User Flows', () => {
 
     // Step 1: Login
     await loginPage.goto();
-    await loginPage.login('admin', 'admin123');
+    await loginPage.login('admin', 'Admin123!');
     await loginPage.waitForDashboardRedirect();
 
     // Step 2: Verify Dashboard
