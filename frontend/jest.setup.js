@@ -94,9 +94,95 @@ global.crypto = {
   },
 };
 
-// Mock next-intl for internationalization
+// Mock next-intl for internationalization with Russian translations
+const translations = {
+  common: {
+    loading: 'Загрузка...',
+    save: 'Сохранить',
+    cancel: 'Отмена',
+    delete: 'Удалить',
+    edit: 'Редактировать',
+    add: 'Добавить',
+    search: 'Поиск',
+    status: 'Статус',
+  },
+  users: {
+    management: 'Управление пользователями',
+    add_new: 'Добавить пользователя',
+    create_new: 'Создать нового пользователя',
+    no_users: 'Пользователи не найдены',
+    login: 'Логин',
+    role: 'Роль',
+    last_login: 'Последний вход',
+    created_at: 'Дата создания',
+    change_password: 'Изменить пароль',
+    current_password: 'Текущий пароль',
+    new_password: 'Новый пароль',
+    confirm_password: 'Подтвердите пароль',
+    passwords_not_match: 'Новые пароли не совпадают!',
+    password_change_success: 'Пароль успешно изменен!',
+    password_change_error: 'Ошибка изменения пароля',
+    create_error: 'Не удалось создать пользователя',
+    delete_error: 'Ошибка удаления',
+    load_error: 'Ошибка',
+    delete_confirm: 'Удалить пользователя?',
+    login_required: 'Логин',
+    password_required: 'Пароль',
+    role_required: 'Роль',
+  },
+  contacts: {
+    title: 'Контакты',
+    add_new: 'Добавить контакт',
+    create_new: 'Создать новый контакт',
+    no_contacts: 'Контакты не найдены',
+    loading: 'Загрузка данных...',
+    no_blocks: 'Нет доступных блоков',
+    full_name: 'ФИО',
+    position: 'Должность',
+    block: 'Блок',
+    influence_status: 'Статус влияния',
+  },
+  blocks: {
+    management: 'Управление блоками',
+    add_new: 'Добавить блок',
+    add_block: 'Добавить новый блок',
+    edit_block: 'Редактировать блок',
+    no_blocks: 'Блоки не найдены',
+    load_error: 'Ошибка загрузки',
+    save_error: 'Ошибка сохранения',
+    delete_error: 'Ошибка удаления',
+    delete_confirm: 'Удалить блок?',
+    name_required: 'Название',
+    code_required: 'Код',
+    description: 'Описание',
+    primary_curator: 'Основной куратор',
+    backup_curator: 'Резервный куратор',
+    not_assigned: 'Не назначен',
+    status_active: 'Активный',
+    status_archived: 'Архивный',
+    code: 'Код',
+    created_at: 'Дата создания',
+    create: 'Создать',
+    update: 'Обновить',
+  },
+  roles: {
+    admin: 'Admin',
+    curator: 'Curator',
+    threat_analyst: 'ThreatAnalyst',
+  },
+};
+
 jest.mock('next-intl', () => ({
-  useTranslations: () => (key) => key,
+  useTranslations: (namespace) => {
+    return (key) => {
+      // Get translation from namespace
+      const ns = translations[namespace];
+      if (ns && ns[key]) {
+        return ns[key];
+      }
+      return key;
+    };
+  },
   useLocale: () => 'ru',
 }));
 
