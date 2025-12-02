@@ -6,8 +6,6 @@
  * - Списки наблюдения
  * - Шифрование/дешифрование
  */
-import React from 'react';
-import { waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
 // Моки для API
@@ -146,8 +144,9 @@ describe('Поток данных контактов (Contacts Data Flow)', () =
       let errorMessage = '';
       try {
         await mockApi.post('/contacts', { blockId: 1 });
-      } catch (error: any) {
-        errorMessage = error.response.data.message;
+      } catch (error: unknown) {
+        const err = error as { response: { data: { message: string } } };
+        errorMessage = err.response.data.message;
       }
 
       expect(errorMessage).toBe('Поле ФИО обязательно');
@@ -208,8 +207,9 @@ describe('Поток данных контактов (Contacts Data Flow)', () =
       let errorMessage = '';
       try {
         await mockApi.delete('/contacts/999');
-      } catch (error: any) {
-        errorMessage = error.response.data.message;
+      } catch (error: unknown) {
+        const err = error as { response: { data: { message: string } } };
+        errorMessage = err.response.data.message;
       }
 
       expect(errorMessage).toBe('Контакт не найден');
@@ -408,8 +408,9 @@ describe('Обработка ошибок сети', () => {
     let errorCode = '';
     try {
       await mockApi.get('/contacts');
-    } catch (error: any) {
-      errorCode = error.code;
+    } catch (error: unknown) {
+      const err = error as { code: string };
+      errorCode = err.code;
     }
 
     expect(errorCode).toBe('ECONNABORTED');
@@ -424,8 +425,9 @@ describe('Обработка ошибок сети', () => {
     let errorCode = '';
     try {
       await mockApi.get('/contacts');
-    } catch (error: any) {
-      errorCode = error.code;
+    } catch (error: unknown) {
+      const err = error as { code: string };
+      errorCode = err.code;
     }
 
     expect(errorCode).toBe('ERR_NETWORK');
@@ -442,8 +444,9 @@ describe('Обработка ошибок сети', () => {
     let status = 0;
     try {
       await mockApi.get('/contacts');
-    } catch (error: any) {
-      status = error.response.status;
+    } catch (error: unknown) {
+      const err = error as { response: { status: number } };
+      status = err.response.status;
     }
 
     expect(status).toBe(500);

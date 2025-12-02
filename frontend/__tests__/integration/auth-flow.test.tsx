@@ -7,8 +7,6 @@
  * - Выход из системы
  * - Защита маршрутов
  */
-import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
 // Моки для Next.js
@@ -101,8 +99,9 @@ describe('Поток аутентификации (Authentication Flow)', () => 
           login: 'wrong',
           password: 'wrong',
         });
-      } catch (error: any) {
-        errorMessage = error.response.data.message;
+      } catch (error: unknown) {
+        const err = error as { response: { data: { message: string } } };
+        errorMessage = err.response.data.message;
       }
 
       expect(errorMessage).toBe('Неверный логин или пароль');
@@ -222,8 +221,9 @@ describe('Поток аутентификации (Authentication Flow)', () => 
           userId: 1,
           totpCode: '000000',
         });
-      } catch (error: any) {
-        errorMessage = error.response.data.message;
+      } catch (error: unknown) {
+        const err = error as { response: { data: { message: string } } };
+        errorMessage = err.response.data.message;
       }
 
       expect(errorMessage).toBe('Неверный код подтверждения');
@@ -285,8 +285,9 @@ describe('Поток аутентификации (Authentication Flow)', () => 
 
       try {
         await mockApi.get('/dashboard');
-      } catch (error: any) {
-        if (error.response.status === 401) {
+      } catch (error: unknown) {
+        const err = error as { response: { status: number } };
+        if (err.response.status === 401) {
           localStorageMock.removeItem('auth_token');
           mockPush('/login');
         }
@@ -361,7 +362,7 @@ describe('Безопасность токенов', () => {
           acc[key] = value;
         }
         return acc;
-      }, {} as Record<string, any>);
+      }, {} as Record<string, string>);
       console.log(sanitized);
     };
 

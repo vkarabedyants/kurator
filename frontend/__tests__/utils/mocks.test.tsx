@@ -218,7 +218,7 @@ describe('Mock Utilities', () => {
   });
 
   it('should work with React components', () => {
-    const TestComponent = ({ onClick, className, children }: any) => (
+    const TestComponent = ({ onClick, className, children }: { onClick: () => void; className: string; children: React.ReactNode }) => (
       <button onClick={onClick} className={className}>
         {children}
       </button>
