@@ -195,8 +195,8 @@ test.describe('Users Management - Admin Access', () => {
       // Click change password for first user
       await usersPage.openChangePassword('admin');
 
-      // Password form should appear
-      const passwordFormHeader = page.locator('h4:has-text("Изменение пароля")');
+      // Password form should appear - the header is "Изменить пароль - admin"
+      const passwordFormHeader = page.locator('h4:has-text("Изменить пароль")');
       await expect(passwordFormHeader).toBeVisible();
 
       // Password fields should be visible
@@ -218,9 +218,9 @@ test.describe('Users Management - Admin Access', () => {
     await usersPage.goto();
     await usersPage.waitForLoad();
 
-    // Header should include creation date column
+    // Header should include creation date column - the translation is "Создан"
     const headers = await usersPage.getTableHeaders();
-    expect(headers).toContain('Дата создания');
+    expect(headers).toContain('Создан');
   });
 });
 
@@ -455,6 +455,10 @@ test.describe('Users Management - Password Change', () => {
 
     await usersPage.openChangePassword('admin');
 
+    // Wait for password form to appear
+    const passwordFormHeader = page.locator('h4:has-text("Изменить пароль")');
+    await expect(passwordFormHeader).toBeVisible({ timeout: 5000 });
+
     // Current password label
     const currentLabel = page.locator('label:has-text("Текущий пароль")');
     await expect(currentLabel).toBeVisible();
@@ -463,8 +467,8 @@ test.describe('Users Management - Password Change', () => {
     const newLabel = page.getByText('Новый пароль', { exact: true });
     await expect(newLabel).toBeVisible();
 
-    // Confirm password label
-    const confirmLabel = page.locator('label:has-text("Подтвердите новый пароль")');
+    // Confirm password label - the translation is "Подтвердите пароль"
+    const confirmLabel = page.locator('label:has-text("Подтвердите пароль")');
     await expect(confirmLabel).toBeVisible();
   });
 
@@ -474,6 +478,10 @@ test.describe('Users Management - Password Change', () => {
     await usersPage.waitForLoad();
 
     await usersPage.openChangePassword('admin');
+
+    // Wait for password form to appear
+    const passwordFormHeader = page.locator('h4:has-text("Изменить пароль")');
+    await expect(passwordFormHeader).toBeVisible({ timeout: 5000 });
 
     const submitButton = page.locator('button[type="submit"]:has-text("Изменить пароль")');
     await expect(submitButton).toBeVisible();
@@ -486,14 +494,17 @@ test.describe('Users Management - Password Change', () => {
 
     await usersPage.openChangePassword('admin');
 
+    // Wait for password form to appear
+    const passwordFormHeader = page.locator('h4:has-text("Изменить пароль")');
+    await expect(passwordFormHeader).toBeVisible({ timeout: 5000 });
+
     const cancelButton = page.locator('button:has-text("Отмена")');
     await expect(cancelButton).toBeVisible();
 
     // Click cancel
     await cancelButton.click();
 
-    // Form should close
-    const passwordFormHeader = page.locator('h4:has-text("Изменение пароля")');
+    // Form should close - the form header is "Изменить пароль"
     await expect(passwordFormHeader).not.toBeVisible();
   });
 
@@ -503,6 +514,10 @@ test.describe('Users Management - Password Change', () => {
     await usersPage.waitForLoad();
 
     await usersPage.openChangePassword('admin');
+
+    // Wait for password form to appear
+    const passwordFormHeader = page.locator('h4:has-text("Изменить пароль")');
+    await expect(passwordFormHeader).toBeVisible({ timeout: 5000 });
 
     // Fill with mismatched passwords
     const passwordInputs = page.locator('input[type="password"]');
@@ -515,8 +530,7 @@ test.describe('Users Management - Password Change', () => {
     await submitButton.click();
     await page.waitForTimeout(1000);
 
-    // Should show error or remain on form
-    const passwordFormHeader = page.locator('h4:has-text("Изменение пароля")');
+    // Should show error or remain on form - the form header is "Изменить пароль"
     await expect(passwordFormHeader).toBeVisible();
   });
 
@@ -526,6 +540,10 @@ test.describe('Users Management - Password Change', () => {
     await usersPage.waitForLoad();
 
     await usersPage.openChangePassword('admin');
+
+    // Wait for password form to appear
+    const passwordFormHeader = page.locator('h4:has-text("Изменить пароль")');
+    await expect(passwordFormHeader).toBeVisible({ timeout: 5000 });
 
     // Fill only new password fields
     const passwordInputs = page.locator('input[type="password"]');
@@ -537,8 +555,7 @@ test.describe('Users Management - Password Change', () => {
     await submitButton.click();
     await page.waitForTimeout(500);
 
-    // Should show validation error (HTML5 validation)
-    const passwordFormHeader = page.locator('h4:has-text("Изменение пароля")');
+    // Should show validation error (HTML5 validation) - the form header is "Изменить пароль"
     await expect(passwordFormHeader).toBeVisible();
   });
 });
