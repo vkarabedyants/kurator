@@ -207,9 +207,9 @@ test.describe('Blocks Management - Admin Access', () => {
     const blockCount = await blocksPage.getBlockCount();
 
     if (blockCount > 0) {
-      // Check for curator labels in block cards
-      const primaryLabel = page.locator('text=Основной:');
-      const backupLabel = page.locator('text=Резервный:');
+      // Check for curator labels in block cards (translations: "Основной куратор" and "Резервный куратор")
+      const primaryLabel = page.locator('text=/Основной куратор/i');
+      const backupLabel = page.locator('text=/Резервный куратор/i');
 
       expect(await primaryLabel.count()).toBeGreaterThan(0);
       expect(await backupLabel.count()).toBeGreaterThan(0);
