@@ -46,7 +46,8 @@ describe('New Contact Page', () => {
 
     render(<NewContactPage />);
 
-    expect(screen.getByText('Загрузка данных...')).toBeInTheDocument();
+    // Page uses tCommon('loading') = 'Загрузка...'
+    expect(screen.getByText('Загрузка...')).toBeInTheDocument();
   });
 
   it('should show no blocks message', async () => {

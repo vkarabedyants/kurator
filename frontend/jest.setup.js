@@ -137,6 +137,8 @@ const translations = {
     no_contacts: 'Контакты не найдены',
     loading: 'Загрузка данных...',
     no_blocks: 'Нет доступных блоков',
+    no_blocks_available: 'Нет доступных блоков',
+    no_blocks_message: 'У вас нет доступа к блокам для создания контактов.',
     full_name: 'ФИО',
     position: 'Должность',
     block: 'Блок',

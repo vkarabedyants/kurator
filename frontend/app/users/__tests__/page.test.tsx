@@ -104,8 +104,9 @@ describe('Users Page', () => {
 
     render(<UsersPage />);
 
+    // Page shows error message directly: {error}
     await waitFor(() => {
-      expect(screen.getByText(/Ошибка: Network error/)).toBeInTheDocument();
+      expect(screen.getByText('Network error')).toBeInTheDocument();
     });
   });
 
@@ -177,7 +178,8 @@ describe('Users Page', () => {
       }
 
       // Submit form
-      const submitButton = within(formContainer).getByRole('button', { name: /Создать пользователя/ });
+      // Button uses t('add_new') = 'Добавить пользователя'
+      const submitButton = within(formContainer).getByRole('button', { name: /Добавить пользователя/ });
       fireEvent.click(submitButton);
 
       await waitFor(() => {
@@ -240,12 +242,13 @@ describe('Users Page', () => {
     const changePasswordButton = screen.getByRole('button', { name: /Изменить пароль/ });
     fireEvent.click(changePasswordButton);
 
+    // Page shows: "{t('change_password')} - {user.login}" = "Изменить пароль - testuser"
     await waitFor(() => {
-      expect(screen.getByText(/Изменение пароля для testuser/)).toBeInTheDocument();
+      expect(screen.getByText(/Изменить пароль - testuser/)).toBeInTheDocument();
     });
 
     // Verify password inputs exist
-    const passwordContainer = screen.getByText(/Изменение пароля для testuser/).closest('td');
+    const passwordContainer = screen.getByText(/Изменить пароль - testuser/).closest('td');
     if (passwordContainer) {
       const passwordInputs = passwordContainer.querySelectorAll('input[type="password"]');
       expect(passwordInputs.length).toBe(3); // Current, new, confirm
@@ -275,12 +278,13 @@ describe('Users Page', () => {
     // Open password form
     fireEvent.click(screen.getByRole('button', { name: /Изменить пароль/ }));
 
+    // Page shows: "{t('change_password')} - {user.login}" = "Изменить пароль - testuser"
     await waitFor(() => {
-      expect(screen.getByText(/Изменение пароля для testuser/)).toBeInTheDocument();
+      expect(screen.getByText(/Изменить пароль - testuser/)).toBeInTheDocument();
     });
 
     // Fill password form
-    const passwordContainer = screen.getByText(/Изменение пароля для testuser/).closest('td');
+    const passwordContainer = screen.getByText(/Изменить пароль - testuser/).closest('td');
     if (passwordContainer) {
       const passwordInputs = passwordContainer.querySelectorAll('input[type="password"]');
 
@@ -331,12 +335,13 @@ describe('Users Page', () => {
     // Open password form
     fireEvent.click(screen.getByRole('button', { name: /Изменить пароль/ }));
 
+    // Page shows: "{t('change_password')} - {user.login}" = "Изменить пароль - testuser"
     await waitFor(() => {
-      expect(screen.getByText(/Изменение пароля для testuser/)).toBeInTheDocument();
+      expect(screen.getByText(/Изменить пароль - testuser/)).toBeInTheDocument();
     });
 
     // Fill with mismatched passwords
-    const passwordContainer = screen.getByText(/Изменение пароля для testuser/).closest('td');
+    const passwordContainer = screen.getByText(/Изменить пароль - testuser/).closest('td');
     if (passwordContainer) {
       const passwordInputs = passwordContainer.querySelectorAll('input[type="password"]');
 
@@ -467,7 +472,8 @@ describe('Users Page', () => {
         fireEvent.change(loginInput, { target: { value: 'testuser' } });
         fireEvent.change(passwordInput, { target: { value: 'password123' } });
 
-        const submitButton = within(formContainer).getByRole('button', { name: /Создать пользователя/ });
+        // Button uses t('add_new') = 'Добавить пользователя'
+        const submitButton = within(formContainer).getByRole('button', { name: /Добавить пользователя/ });
         fireEvent.click(submitButton);
 
         await waitFor(() => {
