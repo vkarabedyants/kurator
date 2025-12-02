@@ -2,12 +2,16 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import MainLayout from '@/components/layout/MainLayout';
 import { usersApi, authApi } from '@/services/api';
 import { User, UserRole } from '@/types/api';
 
 export default function UsersPage() {
   const router = useRouter();
+  const t = useTranslations('users');
+  const tCommon = useTranslations('common');
+  const tRoles = useTranslations('roles');
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -34,7 +38,7 @@ export default function UsersPage() {
       const data = await usersApi.getAll();
       setUsers(data);
     } catch (err: any) {
-      setError(err.message || 'Не удалось загрузить пользователей');
+      setError(err.message || t('load_error'));
     } finally {
       setLoading(false);
     }
@@ -52,7 +56,7 @@ export default function UsersPage() {
       setFormData({ login: '', password: '', role: UserRole.Curator });
       fetchUsers();
     } catch (err: any) {
-      alert('Не удалось создать пользователя: ' + err.message);
+      alert(t('create_error') + ': ' + err.message);
     }
   };
 
@@ -60,7 +64,7 @@ export default function UsersPage() {
     e.preventDefault();
 
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      alert('Новые пароли не совпадают!');
+      alert(t('passwords_not_match'));
       return;
     }
 
@@ -71,21 +75,21 @@ export default function UsersPage() {
       });
       setShowPasswordForm(null);
       setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
-      alert('Пароль успешно изменен!');
+      alert(t('password_change_success'));
     } catch (err: any) {
-      alert('Не удалось изменить пароль: ' + err.message);
+      alert(t('password_change_error') + ': ' + err.message);
     }
   };
 
   const handleDeleteUser = async (id: number) => {
-    if (!window.confirm('Вы уверены, что хотите удалить этого пользователя?')) {
+    if (!window.confirm(t('delete_confirm'))) {
       return;
     }
     try {
       await usersApi.delete(id);
       fetchUsers();
     } catch (err: any) {
-      alert('Не удалось удалить пользователя: ' + err.message);
+      alert(t('delete_error') + ': ' + err.message);
     }
   };
 
@@ -98,18 +102,27 @@ export default function UsersPage() {
     }
   };
 
+  const getRoleLabel = (role: string) => {
+    switch (role) {
+      case UserRole.Admin: return tRoles('admin');
+      case UserRole.Curator: return tRoles('curator');
+      case UserRole.ThreatAnalyst: return tRoles('threat_analyst');
+      default: return role;
+    }
+  };
+
   return (
     <MainLayout>
       <div className="bg-white shadow rounded-lg">
         {/* Header */}
         <div className="px-6 py-4 border-b border-gray-200">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-gray-900">Управление пользователями</h2>
+            <h2 className="text-xl font-semibold text-gray-900">{t('management')}</h2>
             <button
               onClick={() => setShowAddForm(true)}
               className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm font-medium"
             >
-              Добавить пользователя
+              {t('add_new')}
             </button>
           </div>
         </div>
@@ -117,11 +130,11 @@ export default function UsersPage() {
         {/* Add User Form */}
         {showAddForm && (
           <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Создать нового пользователя</h3>
+            <h3 className="text-lg font-medium text-gray-900 mb-4">{t('create_new')}</h3>
             <form onSubmit={handleCreateUser} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Логин *</label>
+                  <label className="block text-sm font-medium text-gray-700">{t('login_required')}</label>
                   <input
                     type="text"
                     value={formData.login}
@@ -132,7 +145,7 @@ export default function UsersPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Пароль *</label>
+                  <label className="block text-sm font-medium text-gray-700">{t('password_required')}</label>
                   <input
                     type="password"
                     value={formData.password}
@@ -143,15 +156,15 @@ export default function UsersPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Роль *</label>
+                  <label className="block text-sm font-medium text-gray-700">{t('role_required')}</label>
                   <select
                     value={formData.role}
                     onChange={(e) => setFormData({...formData, role: e.target.value as UserRole})}
                     className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                   >
-                    <option value={UserRole.Curator}>Куратор</option>
-                    <option value={UserRole.ThreatAnalyst}>Аналитик угроз</option>
-                    <option value={UserRole.Admin}>Администратор</option>
+                    <option value={UserRole.Curator}>{tRoles('curator')}</option>
+                    <option value={UserRole.ThreatAnalyst}>{tRoles('threat_analyst')}</option>
+                    <option value={UserRole.Admin}>{tRoles('admin')}</option>
                   </select>
                 </div>
               </div>
@@ -164,13 +177,13 @@ export default function UsersPage() {
                   }}
                   className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
                 >
-                  Отмена
+                  {tCommon('cancel')}
                 </button>
                 <button
                   type="submit"
                   className="px-4 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
                 >
-                  Создать пользователя
+                  {t('add_new')}
                 </button>
               </div>
             </form>
@@ -185,11 +198,11 @@ export default function UsersPage() {
             </div>
           ) : error ? (
             <div className="text-center py-12 text-red-600">
-              Ошибка: {error}
+              {error}
             </div>
           ) : users.length === 0 ? (
             <div className="text-center py-12 text-gray-500">
-              Пользователи не найдены
+              {t('no_users')}
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -200,19 +213,19 @@ export default function UsersPage() {
                       ID
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Логин
+                      {t('login')}
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Роль
+                      {t('role')}
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Последний вход
+                      {t('last_login')}
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Дата создания
+                      {t('created_at')}
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Действия
+                      {tCommon('status')}
                     </th>
                   </tr>
                 </thead>
@@ -228,11 +241,11 @@ export default function UsersPage() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getRoleBadgeColor(user.role)}`}>
-                            {user.role}
+                            {getRoleLabel(user.role)}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleString() : 'Никогда'}
+                          {user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleString() : '-'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {new Date(user.createdAt).toLocaleDateString()}
@@ -242,14 +255,14 @@ export default function UsersPage() {
                             onClick={() => setShowPasswordForm(showPasswordForm === user.id ? null : user.id)}
                             className="text-indigo-600 hover:text-indigo-900 mr-3"
                           >
-                            Изменить пароль
+                            {t('change_password')}
                           </button>
                           <button
                             onClick={() => handleDeleteUser(user.id)}
                             className="text-red-600 hover:text-red-900"
                             disabled={user.login === 'admin'}
                           >
-                            Удалить
+                            {tCommon('delete')}
                           </button>
                         </td>
                       </tr>
@@ -258,11 +271,11 @@ export default function UsersPage() {
                           <td colSpan={6} className="px-6 py-4 bg-gray-50">
                             <form onSubmit={(e) => handleChangePassword(user.id, e)} className="space-y-3">
                               <h4 className="text-sm font-medium text-gray-900 mb-3">
-                                Изменение пароля для {user.login}
+                                {t('change_password')} - {user.login}
                               </h4>
                               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                                 <div>
-                                  <label className="block text-sm font-medium text-gray-700">Текущий пароль</label>
+                                  <label className="block text-sm font-medium text-gray-700">{t('current_password')}</label>
                                   <input
                                     type="password"
                                     value={passwordData.currentPassword}
@@ -272,7 +285,7 @@ export default function UsersPage() {
                                   />
                                 </div>
                                 <div>
-                                  <label className="block text-sm font-medium text-gray-700">Новый пароль</label>
+                                  <label className="block text-sm font-medium text-gray-700">{t('new_password')}</label>
                                   <input
                                     type="password"
                                     value={passwordData.newPassword}
@@ -283,7 +296,7 @@ export default function UsersPage() {
                                   />
                                 </div>
                                 <div>
-                                  <label className="block text-sm font-medium text-gray-700">Подтвердите новый пароль</label>
+                                  <label className="block text-sm font-medium text-gray-700">{t('confirm_password')}</label>
                                   <input
                                     type="password"
                                     value={passwordData.confirmPassword}
@@ -303,13 +316,13 @@ export default function UsersPage() {
                                   }}
                                   className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
                                 >
-                                  Отмена
+                                  {tCommon('cancel')}
                                 </button>
                                 <button
                                   type="submit"
                                   className="px-4 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
                                 >
-                                  Изменить пароль
+                                  {t('change_password')}
                                 </button>
                               </div>
                             </form>

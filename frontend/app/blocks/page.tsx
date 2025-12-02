@@ -2,12 +2,16 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import MainLayout from '@/components/layout/MainLayout';
 import { blocksApi, usersApi } from '@/services/api';
 import { Block, User, BlockStatus } from '@/types/api';
 
 export default function BlocksPage() {
   const router = useRouter();
+  const t = useTranslations('blocks');
+  const tCommon = useTranslations('common');
+  const tRoles = useTranslations('roles');
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -37,7 +41,7 @@ export default function BlocksPage() {
       setBlocks(blocksData);
       setUsers(usersData.filter(u => u.role === 'Curator'));
     } catch (err: any) {
-      setError(err.message || 'Не удалось загрузить данные');
+      setError(err.message || t('load_error'));
     } finally {
       setLoading(false);
     }
@@ -82,7 +86,7 @@ export default function BlocksPage() {
       resetForm();
       fetchData();
     } catch (err: any) {
-      alert('Не удалось сохранить блок: ' + (err.response?.data?.message || err.message));
+      alert(t('save_error') + ': ' + (err.response?.data?.message || err.message));
     }
   };
 
@@ -104,14 +108,14 @@ export default function BlocksPage() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!window.confirm('Вы уверены, что хотите удалить этот блок? Это повлияет на все связанные контакты!')) {
+    if (!window.confirm(t('delete_confirm'))) {
       return;
     }
     try {
       await blocksApi.delete(id);
       fetchData();
     } catch (err: any) {
-      alert('Не удалось удалить блок: ' + err.message);
+      alert(t('delete_error') + ': ' + err.message);
     }
   };
 
@@ -138,12 +142,12 @@ export default function BlocksPage() {
         {/* Header */}
         <div className="px-6 py-4 border-b border-gray-200">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-gray-900">Управление блоками</h2>
+            <h2 className="text-xl font-semibold text-gray-900">{t('management')}</h2>
             <button
               onClick={() => setShowAddForm(true)}
               className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm font-medium"
             >
-              Добавить блок
+              {t('add_new')}
             </button>
           </div>
         </div>
@@ -152,12 +156,12 @@ export default function BlocksPage() {
         {showAddForm && (
           <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
             <h3 className="text-lg font-medium text-gray-900 mb-4">
-              {editingBlock ? 'Редактировать блок' : 'Добавить новый блок'}
+              {editingBlock ? t('edit_block') : t('add_block')}
             </h3>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Название *</label>
+                  <label className="block text-sm font-medium text-gray-700">{t('name_required')}</label>
                   <input
                     type="text"
                     value={formData.name}
@@ -167,20 +171,20 @@ export default function BlocksPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Код *</label>
+                  <label className="block text-sm font-medium text-gray-700">{t('code_required')}</label>
                   <input
                     type="text"
                     value={formData.code}
                     onChange={(e) => setFormData({...formData, code: e.target.value.toUpperCase()})}
                     className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                    placeholder="напр., OP, SIL, MEDIA"
+                    placeholder={t('code_placeholder')}
                     required
                     maxLength={10}
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Описание</label>
+                <label className="block text-sm font-medium text-gray-700">{t('description')}</label>
                 <textarea
                   value={formData.description}
                   onChange={(e) => setFormData({...formData, description: e.target.value})}
@@ -190,37 +194,37 @@ export default function BlocksPage() {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Статус</label>
+                  <label className="block text-sm font-medium text-gray-700">{tCommon('status')}</label>
                   <select
                     value={formData.status}
                     onChange={(e) => setFormData({...formData, status: e.target.value as BlockStatus})}
                     className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                   >
-                    <option value={BlockStatus.Active}>Активный</option>
-                    <option value={BlockStatus.Archived}>Архивный</option>
+                    <option value={BlockStatus.Active}>{t('status_active')}</option>
+                    <option value={BlockStatus.Archived}>{t('status_archived')}</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Основной куратор</label>
+                  <label className="block text-sm font-medium text-gray-700">{t('primary_curator')}</label>
                   <select
                     value={formData.primaryCuratorId}
                     onChange={(e) => setFormData({...formData, primaryCuratorId: Number(e.target.value)})}
                     className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                   >
-                    <option value={0}>Не назначен</option>
+                    <option value={0}>{t('not_assigned')}</option>
                     {users.map(user => (
                       <option key={user.id} value={user.id}>{user.login}</option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Резервный куратор</label>
+                  <label className="block text-sm font-medium text-gray-700">{t('backup_curator')}</label>
                   <select
                     value={formData.backupCuratorId}
                     onChange={(e) => setFormData({...formData, backupCuratorId: Number(e.target.value)})}
                     className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                   >
-                    <option value={0}>Не назначен</option>
+                    <option value={0}>{t('not_assigned')}</option>
                     {users.filter(u => u.id !== formData.primaryCuratorId).map(user => (
                       <option key={user.id} value={user.id}>{user.login}</option>
                     ))}
@@ -237,13 +241,13 @@ export default function BlocksPage() {
                   }}
                   className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
                 >
-                  Отмена
+                  {tCommon('cancel')}
                 </button>
                 <button
                   type="submit"
                   className="px-4 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
                 >
-                  {editingBlock ? 'Обновить' : 'Создать'} блок
+                  {editingBlock ? t('update') : t('create')}
                 </button>
               </div>
             </form>
@@ -258,11 +262,11 @@ export default function BlocksPage() {
             </div>
           ) : error ? (
             <div className="text-center py-12 text-red-600">
-              Ошибка: {error}
+              {error}
             </div>
           ) : blocks.length === 0 ? (
             <div className="text-center py-12 text-gray-500">
-              Блоки не найдены. Создайте ваш первый блок!
+              {t('no_blocks')}
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -271,10 +275,10 @@ export default function BlocksPage() {
                   <div className="flex items-start justify-between mb-3">
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900">{block.name}</h3>
-                      <p className="text-sm text-gray-600">Код: {block.code}</p>
+                      <p className="text-sm text-gray-600">{t('code')}: {block.code}</p>
                     </div>
                     <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusBadge(block.status)}`}>
-                      {block.status}
+                      {block.status === BlockStatus.Active ? t('status_active') : t('status_archived')}
                     </span>
                   </div>
                   {block.description && (
@@ -282,15 +286,15 @@ export default function BlocksPage() {
                   )}
                   <div className="space-y-1 text-sm">
                     <p className="text-gray-700">
-                      <span className="font-medium">Основной:</span>{' '}
-                      {block.curators?.find(c => c.curatorType === 'Primary')?.userLogin || 'Не назначен'}
+                      <span className="font-medium">{t('primary_curator')}:</span>{' '}
+                      {block.curators?.find(c => c.curatorType === 'Primary')?.userLogin || t('not_assigned')}
                     </p>
                     <p className="text-gray-700">
-                      <span className="font-medium">Резервный:</span>{' '}
-                      {block.curators?.find(c => c.curatorType === 'Backup')?.userLogin || 'Не назначен'}
+                      <span className="font-medium">{t('backup_curator')}:</span>{' '}
+                      {block.curators?.find(c => c.curatorType === 'Backup')?.userLogin || t('not_assigned')}
                     </p>
                     <p className="text-gray-500 text-xs">
-                      Создано: {new Date(block.createdAt).toLocaleDateString()}
+                      {t('created_at')}: {new Date(block.createdAt).toLocaleDateString()}
                     </p>
                   </div>
                   <div className="mt-4 flex justify-end space-x-2">
@@ -298,13 +302,13 @@ export default function BlocksPage() {
                       onClick={() => handleEdit(block)}
                       className="text-indigo-600 hover:text-indigo-900 text-sm font-medium"
                     >
-                      Редактировать
+                      {tCommon('edit')}
                     </button>
                     <button
                       onClick={() => handleDelete(block.id)}
                       className="text-red-600 hover:text-red-900 text-sm font-medium"
                     >
-                      Удалить
+                      {tCommon('delete')}
                     </button>
                   </div>
                 </div>
