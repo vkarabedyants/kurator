@@ -119,7 +119,7 @@ export const mockFetchResponse = (data: any, status: number = 200) => {
 export const flushPromises = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 // Generate mock data arrays
-export const generateMockArray = <T>(template: T, count: number): T[] => {
+export const generateMockArray = <T,>(template: T, count: number): T[] => {
   return Array.from({ length: count }, (_, index) => ({
     ...template,
     id: index + 1,

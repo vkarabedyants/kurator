@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import {
   mockUser,
   mockContact,
@@ -8,11 +8,10 @@ import {
   mockApiResponse,
   generateMockArray,
   createMockUser,
-  createMockContact,
-  createMockInteraction,
-  createMockBlock,
   expectValidComponent,
   expectValidProps,
+  testProps,
+  mockLocalStorage,
 } from './test-utils';
 
 describe('Test Utilities', () => {
@@ -86,12 +85,10 @@ describe('Test Utilities', () => {
   });
 
   it('should provide test props', () => {
-    const { testProps } = require('./test-utils');
     expect(testProps).toHaveProperty('className', 'test-class');
   });
 
   it('should provide localStorage mock', () => {
-    const { mockLocalStorage } = require('./test-utils');
     const ls = mockLocalStorage();
 
     ls.setItem('test', 'value');

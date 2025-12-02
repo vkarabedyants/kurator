@@ -51,8 +51,9 @@ export default function EditContactPage() {
           notes: response.data.notes || ''
         });
       }
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Не удалось загрузить контакт');
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } } };
+      setError(error.response?.data?.message || 'Не удалось загрузить контакт');
     } finally {
       setIsLoading(false);
     }
@@ -66,14 +67,15 @@ export default function EditContactPage() {
     try {
       await api.put(`/contacts/${contactId}`, formData);
       router.push(`/contacts/${contactId}`);
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Не удалось обновить контакт');
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } } };
+      setError(error.response?.data?.message || 'Не удалось обновить контакт');
     } finally {
       setIsSaving(false);
     }
   };
 
-  const handleChange = (field: keyof UpdateContactDto, value: any) => {
+  const handleChange = (field: keyof UpdateContactDto, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 

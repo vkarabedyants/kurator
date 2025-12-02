@@ -30,8 +30,9 @@ export default function ContactDetailPage() {
       setLoading(true);
       const data = await contactsApi.getById(Number(params.id));
       setContact(data);
-    } catch (err: any) {
-      setError(err.message || 'Не удалось загрузить контакт');
+    } catch (err: unknown) {
+      const error = err as { message?: string };
+      setError(error.message || 'Не удалось загрузить контакт');
     } finally {
       setLoading(false);
     }
@@ -49,8 +50,9 @@ export default function ContactDetailPage() {
         resultId: null,
         comment: '',
       });
-    } catch (err: any) {
-      alert('Не удалось добавить взаимодействие: ' + err.message);
+    } catch (err: unknown) {
+      const error = err as { message?: string };
+      alert('Не удалось добавить взаимодействие: ' + error.message);
     }
   };
 

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { History, Filter, User, Calendar, Activity, Search, FileText, Edit, Trash2, Plus, Eye } from 'lucide-react';
+import { History, User, Calendar, Activity, Search, FileText, Edit, Trash2, Plus, Eye } from 'lucide-react';
 import { api } from '@/services/api';
 import { AuditLogDto, AuditActionType } from '@/types/api';
 
@@ -23,40 +23,7 @@ export default function AuditLogPage() {
   }, []);
 
   useEffect(() => {
-    filterLogs();
-  }, [searchTerm, selectedUser, selectedAction, dateFrom, dateTo, auditLogs]);
-
-  const loadAuditLogs = async () => {
-    try {
-      setIsLoading(true);
-      const response = await api.get('/audit-log', {
-        params: {
-          pageSize: 500 // Load more initially
-        }
-      });
-      // Backend returns { data: [...], page, pageSize, total, totalPages }
-      const logs = response.data?.data || response.data?.items || [];
-      if (logs.length > 0) {
-        // Map backend response to frontend DTO format (userLogin -> userName)
-        const mappedLogs = logs.map((log: { id: number; userId: number; userLogin?: string; userName?: string; actionType: string; entityType: string; entityId?: string; timestamp: string; oldValue?: string; newValue?: string }) => ({
-          ...log,
-          userName: log.userLogin || log.userName || 'Unknown',
-          actionType: log.actionType as AuditActionType
-        }));
-        setAuditLogs(mappedLogs);
-
-        // Extract unique users for filter
-        const uniqueUsers = [...new Set(mappedLogs.map((log: AuditLogDto) => log.userName))] as string[];
-        setUsers(uniqueUsers);
-      }
-    } catch (error) {
-      console.error('Не удалось загрузить журнал аудита:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const filterLogs = () => {
+    // Filter logs when filters or data change
     let filtered = [...auditLogs];
 
     if (searchTerm) {
@@ -88,6 +55,36 @@ export default function AuditLogPage() {
 
     setFilteredLogs(filtered);
     setCurrentPage(1);
+  }, [searchTerm, selectedUser, selectedAction, dateFrom, dateTo, auditLogs]);
+
+  const loadAuditLogs = async () => {
+    try {
+      setIsLoading(true);
+      const response = await api.get('/audit-log', {
+        params: {
+          pageSize: 500 // Load more initially
+        }
+      });
+      // Backend returns { data: [...], page, pageSize, total, totalPages }
+      const logs = response.data?.data || response.data?.items || [];
+      if (logs.length > 0) {
+        // Map backend response to frontend DTO format (userLogin -> userName)
+        const mappedLogs = logs.map((log: { id: number; userId: number; userLogin?: string; userName?: string; actionType: string; entityType: string; entityId?: string; timestamp: string; oldValue?: string; newValue?: string }) => ({
+          ...log,
+          userName: log.userLogin || log.userName || 'Unknown',
+          actionType: log.actionType as AuditActionType
+        }));
+        setAuditLogs(mappedLogs);
+
+        // Extract unique users for filter
+        const uniqueUsers = [...new Set(mappedLogs.map((log: AuditLogDto) => log.userName))] as string[];
+        setUsers(uniqueUsers);
+      }
+    } catch (error) {
+      console.error('Не удалось загрузить журнал аудита:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const getActionIcon = (action: AuditActionType) => {

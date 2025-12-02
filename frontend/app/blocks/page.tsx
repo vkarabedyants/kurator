@@ -1,17 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import MainLayout from '@/components/layout/MainLayout';
 import { blocksApi, usersApi } from '@/services/api';
 import { Block, User, BlockStatus } from '@/types/api';
 
 export default function BlocksPage() {
-  const router = useRouter();
   const t = useTranslations('blocks');
   const tCommon = useTranslations('common');
-  const tRoles = useTranslations('roles');
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -40,8 +37,9 @@ export default function BlocksPage() {
       ]);
       setBlocks(blocksData);
       setUsers(usersData.filter(u => u.role === 'Curator'));
-    } catch (err: any) {
-      setError(err.message || t('load_error'));
+    } catch (err: unknown) {
+      const error = err as { message?: string };
+      setError(error.message || t('load_error'));
     } finally {
       setLoading(false);
     }
@@ -85,8 +83,9 @@ export default function BlocksPage() {
       setEditingBlock(null);
       resetForm();
       fetchData();
-    } catch (err: any) {
-      alert(t('save_error') + ': ' + (err.response?.data?.message || err.message));
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } }; message?: string };
+      alert(t('save_error') + ': ' + (error.response?.data?.message || error.message));
     }
   };
 
@@ -114,8 +113,9 @@ export default function BlocksPage() {
     try {
       await blocksApi.delete(id);
       fetchData();
-    } catch (err: any) {
-      alert(t('delete_error') + ': ' + err.message);
+    } catch (err: unknown) {
+      const error = err as { message?: string };
+      alert(t('delete_error') + ': ' + error.message);
     }
   };
 

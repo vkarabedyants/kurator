@@ -1,6 +1,5 @@
 
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import BlocksPage from '../page';
 import { blocksApi, usersApi } from '@/services/api';
 

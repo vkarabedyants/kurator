@@ -41,7 +41,14 @@ function generateBreadcrumbs(pathname: string, t: (key: string) => string): Arra
 }
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<{ login?: string; role?: string } | null>(() => {
+    // Initialize from localStorage on first render (client-side only)
+    if (typeof window !== 'undefined') {
+      const userStr = localStorage.getItem('user');
+      return userStr ? JSON.parse(userStr) : null;
+    }
+    return null;
+  });
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const router = useRouter();
@@ -49,13 +56,14 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   const t = useTranslations();
 
   useEffect(() => {
-    const userStr = localStorage.getItem('user');
-    if (!userStr) {
-      router.push('/login');
-      return;
+    // Check authentication and redirect if needed
+    if (!user && typeof window !== 'undefined') {
+      const userStr = localStorage.getItem('user');
+      if (!userStr) {
+        router.push('/login');
+      }
     }
-    setUser(JSON.parse(userStr));
-  }, [router]);
+  }, [user, router]);
 
   const handleLogout = () => {
     localStorage.removeItem('token');

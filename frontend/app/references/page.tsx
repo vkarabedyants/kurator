@@ -242,7 +242,7 @@ export default function ReferencesPage() {
           <div className="p-6 text-center text-red-500">{error}</div>
         ) : values.length === 0 ? (
           <div className="p-6 text-center text-gray-500">
-            Для этой категории значений не найдено. Нажмите "Добавить новое значение", чтобы создать.
+            Для этой категории значений не найдено. Нажмите &quot;Добавить новое значение&quot;, чтобы создать.
           </div>
         ) : (
           <div className="overflow-x-auto">

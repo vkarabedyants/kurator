@@ -113,28 +113,27 @@ export default function AnalyticsPage() {
   const [selectedBlock, setSelectedBlock] = useState('all');
 
   useEffect(() => {
-    loadAnalytics();
-  }, [selectedPeriod, selectedBlock]);
-
-  const loadAnalytics = async () => {
-    try {
-      setIsLoading(true);
-      const response = await api.get<ApiDashboardResponse>('/dashboard/admin', {
-        params: {
-          period: selectedPeriod,
-          blockId: selectedBlock === 'all' ? undefined : selectedBlock
+    const fetchAnalytics = async () => {
+      try {
+        setIsLoading(true);
+        const response = await api.get<ApiDashboardResponse>('/dashboard/admin', {
+          params: {
+            period: selectedPeriod,
+            blockId: selectedBlock === 'all' ? undefined : selectedBlock
+          }
+        });
+        if (response.data) {
+          const transformed = transformApiResponse(response.data);
+          setAnalytics(transformed);
         }
-      });
-      if (response.data) {
-        const transformed = transformApiResponse(response.data);
-        setAnalytics(transformed);
+      } catch (error) {
+        console.error('Не удалось загрузить аналитику:', error);
+      } finally {
+        setIsLoading(false);
       }
-    } catch (error) {
-      console.error('Не удалось загрузить аналитику:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    };
+    fetchAnalytics();
+  }, [selectedPeriod, selectedBlock]);
 
   const exportData = () => {
     // В реальной реализации это инициировало бы загрузку

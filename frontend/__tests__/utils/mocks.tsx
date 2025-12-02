@@ -151,7 +151,7 @@ export const mockErrorState = {
   error: new Error('Test error'),
 };
 
-export const mockSuccessState = <T>(data: T) => ({
+export const mockSuccessState = <T,>(data: T) => ({
   isLoading: false,
   isError: false,
   data,
@@ -159,7 +159,7 @@ export const mockSuccessState = <T>(data: T) => ({
 });
 
 // Mock form event
-export const mockFormEvent = (values: Record<string, any> = {}) => ({
+export const mockFormEvent = (values: Record<string, string> = {}) => ({
   preventDefault: jest.fn(),
   target: {
     elements: Object.keys(values).reduce((acc, key) => {
