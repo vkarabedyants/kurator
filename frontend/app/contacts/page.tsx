@@ -3,12 +3,16 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import MainLayout from '@/components/layout/MainLayout';
 import { contactsApi } from '@/services/api';
 import { ContactListItem, InfluenceStatus, InfluenceType } from '@/types/api';
 
 export default function ContactsPage() {
   const router = useRouter();
+  const t = useTranslations('contacts');
+  const tCommon = useTranslations('common');
+  const tTable = useTranslations('table');
   const [contacts, setContacts] = useState<ContactListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -35,14 +39,14 @@ export default function ContactsPage() {
       setContacts(response.data);
       setTotalPages(response.totalPages);
     } catch (err: any) {
-      setError(err.message || 'Не удалось загрузить контакты');
+      setError(err.message || t('load_error'));
     } finally {
       setLoading(false);
     }
   };
 
   const handleDelete = async (id: number) => {
-    if (!window.confirm('Вы уверены, что хотите удалить этот контакт?')) {
+    if (!window.confirm(t('delete_confirm'))) {
       return;
     }
 
@@ -50,7 +54,7 @@ export default function ContactsPage() {
       await contactsApi.delete(id);
       fetchContacts();
     } catch (err: any) {
-      alert('Не удалось удалить контакт: ' + err.message);
+      alert(t('delete_error') + ': ' + err.message);
     }
   };
 
@@ -81,12 +85,12 @@ export default function ContactsPage() {
         {/* Header */}
         <div className="px-6 py-4 border-b border-gray-200">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-gray-900">Контакты</h2>
+            <h2 className="text-xl font-semibold text-gray-900">{t('title')}</h2>
             <Link
               href="/contacts/new"
               className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm font-medium"
             >
-              Добавить контакт
+              {t('add_new')}
             </Link>
           </div>
         </div>
@@ -95,36 +99,36 @@ export default function ContactsPage() {
         <div className="px-6 py-4 border-b border-gray-200">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Поиск</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{tCommon('search')}</label>
               <input
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Поиск по ID или должности..."
+                placeholder={t('search_placeholder')}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Статус влияния</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('influence_status')}</label>
               <select
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
               >
-                <option value="">Все</option>
+                <option value="">{t('filter_all')}</option>
                 {Object.values(InfluenceStatus).map(status => (
                   <option key={status} value={status}>{status}</option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Тип влияния</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('influence_type')}</label>
               <select
                 value={filterType}
                 onChange={(e) => setFilterType(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
               >
-                <option value="">Все</option>
+                <option value="">{t('filter_all')}</option>
                 {Object.values(InfluenceType).map(type => (
                   <option key={type} value={type}>{type}</option>
                 ))}
@@ -141,11 +145,11 @@ export default function ContactsPage() {
             </div>
           ) : error ? (
             <div className="text-center py-12 text-red-600">
-              Error: {error}
+              {error}
             </div>
           ) : contacts.length === 0 ? (
             <div className="text-center py-12 text-gray-500">
-              Контакты не найдены
+              {t('no_contacts_found')}
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -156,25 +160,25 @@ export default function ContactsPage() {
                       ID
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Полное имя
+                      {t('full_name')}
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Блок
+                      {t('block')}
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Должность
+                      {t('position')}
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Статус
+                      {tCommon('status')}
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Тип
+                      {t('type')}
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Следующий контакт
+                      {t('next_interaction')}
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Действия
+                      {t('actions')}
                     </th>
                   </tr>
                 </thead>
@@ -206,7 +210,7 @@ export default function ContactsPage() {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {contact.nextTouchDate ? new Date(contact.nextTouchDate).toLocaleDateString() : '-'}
                         {contact.isOverdue && (
-                          <span className="ml-2 text-red-600 font-semibold">Просрочено!</span>
+                          <span className="ml-2 text-red-600 font-semibold">{t('overdue')}</span>
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
@@ -214,19 +218,19 @@ export default function ContactsPage() {
                           href={`/contacts/${contact.id}`}
                           className="text-indigo-600 hover:text-indigo-900 mr-3"
                         >
-                          Просмотр
+                          {t('view')}
                         </Link>
                         <Link
                           href={`/contacts/${contact.id}/edit`}
                           className="text-indigo-600 hover:text-indigo-900 mr-3"
                         >
-                          Редактировать
+                          {tCommon('edit')}
                         </Link>
                         <button
                           onClick={() => handleDelete(contact.id)}
                           className="text-red-600 hover:text-red-900"
                         >
-                          Удалить
+                          {tCommon('delete')}
                         </button>
                       </td>
                     </tr>
@@ -244,17 +248,17 @@ export default function ContactsPage() {
                 disabled={page === 1}
                 className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Предыдущая
+                {tCommon('previous')}
               </button>
               <span className="text-sm text-gray-700">
-                Страница {page} из {totalPages}
+                {t('page_info', { page, totalPages })}
               </span>
               <button
                 onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                 disabled={page === totalPages}
                 className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Следующая
+                {tCommon('next')}
               </button>
             </div>
           )}

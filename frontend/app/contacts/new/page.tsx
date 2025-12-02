@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Save, User, Building2, Hash, Phone, FileText, AlertCircle } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { api } from '@/services/api';
 import { CreateContactRequest } from '@/types/api';
 
@@ -28,6 +29,8 @@ interface ReferencesByCategory {
 
 export default function NewContactPage() {
   const router = useRouter();
+  const t = useTranslations('contacts');
+  const tCommon = useTranslations('common');
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -69,7 +72,7 @@ export default function NewContactPage() {
         setFormData(prev => ({ ...prev, blockId: blocksResponse.data[0].id }));
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Не удалось загрузить данные');
+      setError(err.response?.data?.message || t('load_error'));
     } finally {
       setIsLoadingData(false);
     }
@@ -79,12 +82,12 @@ export default function NewContactPage() {
     e.preventDefault();
 
     if (!formData.blockId) {
-      setError('Пожалуйста, выберите блок');
+      setError(t('select_block_error'));
       return;
     }
 
     if (!formData.fullName.trim()) {
-      setError('Пожалуйста, введите полное имя');
+      setError(t('enter_name_error'));
       return;
     }
 
@@ -99,7 +102,7 @@ export default function NewContactPage() {
         router.push(`/contacts/${response.data.id}`);
       }
     } catch (err: any) {
-      const errorMessage = err.response?.data?.error?.message || err.response?.data?.message || 'Не удалось создать контакт';
+      const errorMessage = err.response?.data?.error?.message || err.response?.data?.message || t('create_error');
       setError(errorMessage);
       console.error('Error creating contact:', err.response?.data);
       console.error('Full error:', err);
@@ -117,7 +120,7 @@ export default function NewContactPage() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Загрузка данных...</p>
+          <p className="mt-4 text-gray-600">{tCommon('loading')}</p>
         </div>
       </div>
     );
@@ -129,13 +132,13 @@ export default function NewContactPage() {
         <div className="bg-white shadow rounded-lg p-8 max-w-md">
           <div className="text-center">
             <AlertCircle className="h-12 w-12 text-yellow-600 mx-auto mb-4" />
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">Нет доступных блоков</h2>
-            <p className="text-gray-600 mb-6">У вас нет назначенных блоков для создания контактов.</p>
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">{t('no_blocks_available')}</h2>
+            <p className="text-gray-600 mb-6">{t('no_blocks_message')}</p>
             <button
               onClick={() => router.back()}
               className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
             >
-              Назад
+              {tCommon('back')}
             </button>
           </div>
         </div>
@@ -153,10 +156,10 @@ export default function NewContactPage() {
             className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4"
           >
             <ArrowLeft className="h-4 w-4" />
-            Назад
+            {tCommon('back')}
           </button>
-          <h1 className="text-3xl font-bold text-gray-900">Создать новый контакт</h1>
-          <p className="text-gray-600 mt-2">Добавить новый контакт в ваш блок</p>
+          <h1 className="text-3xl font-bold text-gray-900">{t('create_new')}</h1>
+          <p className="text-gray-600 mt-2">{t('create_subtitle')}</p>
         </div>
 
         {/* Error Alert */}
