@@ -4,6 +4,72 @@
 
 Этот документ описывает процесс развертывания Kurator на Ubuntu сервере с использованием GitHub Actions для CI/CD.
 
+---
+
+## БЫСТРЫЙ СТАРТ: Подключение новой машины за 10 минут
+
+### Шаг 1: Подключитесь к серверу
+
+```bash
+ssh root@<IP_АДРЕС_СЕРВЕРА>
+```
+
+### Шаг 2: Выполните эти команды на сервере
+
+```bash
+# Обновление и установка Docker
+apt update && apt upgrade -y
+curl -fsSL https://get.docker.com | bash
+apt install -y docker-compose-plugin git
+
+# Создание директории
+mkdir -p /opt/kurator
+cd /opt/kurator
+
+# Генерация SSH ключа для GitHub Actions
+ssh-keygen -t ed25519 -f ~/.ssh/github_deploy -N ""
+cat ~/.ssh/github_deploy.pub >> ~/.ssh/authorized_keys
+
+# Покажет приватный ключ - СКОПИРУЙТЕ ЕГО!
+echo "=== СКОПИРУЙТЕ ЭТОТ КЛЮЧ В GITHUB SECRETS (SSH_PRIVATE_KEY) ==="
+cat ~/.ssh/github_deploy
+echo "=== КОНЕЦ КЛЮЧА ==="
+```
+
+### Шаг 3: Добавьте секреты в GitHub
+
+Перейдите: `https://github.com/vkarabedyants/kurator/settings/secrets/actions`
+
+Добавьте:
+
+| Имя секрета | Значение |
+|-------------|----------|
+| `SERVER_HOST` | IP адрес сервера (например: `192.168.1.100`) |
+| `SERVER_USER` | `root` |
+| `SSH_PRIVATE_KEY` | Приватный ключ из шага 2 (весь текст включая BEGIN и END) |
+| `SERVER_PORT` | `22` |
+| `APP_DIR` | `/opt/kurator` |
+
+### Шаг 4: Запустите деплой
+
+```bash
+# На локальной машине - сделайте любой коммит
+git commit --allow-empty -m "Trigger deploy" && git push
+```
+
+### Шаг 5: Проверьте
+
+```bash
+# На сервере
+cd /opt/kurator
+docker compose ps
+docker compose logs -f
+```
+
+**Готово!** Сайт доступен на `http://<IP_АДРЕС_СЕРВЕРА>`
+
+---
+
 ## Архитектура деплоя
 
 ```
