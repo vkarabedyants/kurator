@@ -65,6 +65,6 @@ public class WatchlistStatistics
     public int Total { get; set; }
     public int RequiresCheck { get; set; }
     public Dictionary<string, int> ByRiskLevel { get; set; } = new();
-    public Dictionary<int?, int> ByRiskSphere { get; set; } = new();
+    public Dictionary<int, int> ByRiskSphere { get; set; } = new();
     public Dictionary<string, int> ByMonitoringFrequency { get; set; } = new();
 }

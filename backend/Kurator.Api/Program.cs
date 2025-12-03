@@ -154,7 +154,7 @@ if (!string.IsNullOrEmpty(certificatePath) && File.Exists(certificatePath))
 {
     try
     {
-        var certificate = new System.Security.Cryptography.X509Certificates.X509Certificate2(
+        var certificate = System.Security.Cryptography.X509Certificates.X509CertificateLoader.LoadPkcs12FromFile(
             certificatePath,
             certificatePassword);
         dataProtectionBuilder.ProtectKeysWithCertificate(certificate);

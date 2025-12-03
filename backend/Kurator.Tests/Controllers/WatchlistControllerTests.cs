@@ -262,9 +262,11 @@ public class WatchlistControllerTests : IDisposable
         var response = okResult.Value;
         var data = response!.GetType().GetProperty("data")!.GetValue(response) as IEnumerable<WatchlistDto>;
 
-        data.Should().HaveCount(1);
-        data!.First().FullName.Should().Be("Overdue Check");
-        data.First().RequiresCheck.Should().BeTrue();
+        data.Should().NotBeNull();
+        var items = data!;
+        items.Should().HaveCount(1);
+        items.First().FullName.Should().Be("Overdue Check");
+        items.First().RequiresCheck.Should().BeTrue();
     }
 
     [Fact]

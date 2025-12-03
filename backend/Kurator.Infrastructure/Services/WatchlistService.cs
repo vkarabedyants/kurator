@@ -319,10 +319,9 @@ public class WatchlistService : IWatchlistService
             .ToDictionaryAsync(x => x.RiskLevel, x => x.Count);
 
         var byRiskSphere = await _context.Watchlists
-            .Where(w => w.IsActive)
-            .GroupBy(w => w.RiskSphereId)
+            .Where(w => w.IsActive && w.RiskSphereId != null)
+            .GroupBy(w => w.RiskSphereId!.Value)
             .Select(g => new { RiskSphere = g.Key, Count = g.Count() })
-            .Where(x => x.RiskSphere != null)
             .ToDictionaryAsync(x => x.RiskSphere, x => x.Count);
 
         var byMonitoringFrequency = await _context.Watchlists

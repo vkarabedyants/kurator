@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import MainLayout from '@/components/layout/MainLayout';
@@ -9,10 +8,8 @@ import { contactsApi } from '@/services/api';
 import { ContactListItem, InfluenceStatus, InfluenceType } from '@/types/api';
 
 export default function ContactsPage() {
-  const router = useRouter();
   const t = useTranslations('contacts');
   const tCommon = useTranslations('common');
-  const tTable = useTranslations('table');
   const [contacts, setContacts] = useState<ContactListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

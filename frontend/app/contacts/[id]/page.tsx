@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useState, useEffect, useCallback } from 'react';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import MainLayout from '@/components/layout/MainLayout';
 import { contactsApi, interactionsApi } from '@/services/api';
@@ -9,7 +9,6 @@ import { ContactDetail, CreateInteractionRequest, InfluenceStatus } from '@/type
 
 export default function ContactDetailPage() {
   const params = useParams();
-  const router = useRouter();
   const [contact, setContact] = useState<ContactDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -21,11 +20,7 @@ export default function ContactDetailPage() {
     comment: '',
   });
 
-  useEffect(() => {
-    fetchContact();
-  }, [params.id]);
-
-  const fetchContact = async () => {
+  const fetchContact = useCallback(async () => {
     try {
       setLoading(true);
       const data = await contactsApi.getById(Number(params.id));
@@ -36,7 +31,11 @@ export default function ContactDetailPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [params.id]);
+
+  useEffect(() => {
+    fetchContact();
+  }, [fetchContact]);
 
   const handleAddInteraction = async (e: React.FormEvent) => {
     e.preventDefault();

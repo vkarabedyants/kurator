@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { ArrowLeft, Save, User, Building2, Hash, Phone, FileText, AlertCircle, Loader2 } from 'lucide-react';
 import { api } from '@/services/api';
@@ -28,11 +28,7 @@ export default function EditContactPage() {
     notes: ''
   });
 
-  useEffect(() => {
-    loadContact();
-  }, [contactId]);
-
-  const loadContact = async () => {
+  const loadContact = useCallback(async () => {
     try {
       setIsLoading(true);
       const response = await api.get(`/contacts/${contactId}`);
@@ -57,7 +53,11 @@ export default function EditContactPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [contactId]);
+
+  useEffect(() => {
+    loadContact();
+  }, [loadContact]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

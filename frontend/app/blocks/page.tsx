@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import MainLayout from '@/components/layout/MainLayout';
 import { blocksApi, usersApi } from '@/services/api';
@@ -24,11 +24,7 @@ export default function BlocksPage() {
     backupCuratorId: 0,
   });
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       const [blocksData, usersData] = await Promise.all([
@@ -43,7 +39,11 @@ export default function BlocksPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [t]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

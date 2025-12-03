@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Save, User, Building2, Hash, Phone, FileText, AlertCircle } from 'lucide-react';
 import { useTranslations } from 'next-intl';
@@ -51,11 +51,7 @@ export default function NewContactPage() {
     notes: null
   });
 
-  useEffect(() => {
-    loadInitialData();
-  }, []);
-
-  const loadInitialData = async () => {
+  const loadInitialData = useCallback(async () => {
     try {
       setIsLoadingData(true);
 
@@ -71,12 +67,17 @@ export default function NewContactPage() {
       if (blocksResponse.data && blocksResponse.data.length === 1) {
         setFormData(prev => ({ ...prev, blockId: blocksResponse.data[0].id }));
       }
-    } catch (err: any) {
-      setError(err.response?.data?.message || t('load_error'));
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } } };
+      setError(error.response?.data?.message || t('load_error'));
     } finally {
       setIsLoadingData(false);
     }
-  };
+  }, [t]);
+
+  useEffect(() => {
+    loadInitialData();
+  }, [loadInitialData]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -101,17 +102,18 @@ export default function NewContactPage() {
       if (response.data) {
         router.push(`/contacts/${response.data.id}`);
       }
-    } catch (err: any) {
-      const errorMessage = err.response?.data?.error?.message || err.response?.data?.message || t('create_error');
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { error?: { message?: string }; message?: string } } };
+      const errorMessage = error.response?.data?.error?.message || error.response?.data?.message || t('create_error');
       setError(errorMessage);
-      console.error('Error creating contact:', err.response?.data);
+      console.error('Error creating contact:', error.response?.data);
       console.error('Full error:', err);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleChange = (field: keyof CreateContactRequest, value: any) => {
+  const handleChange = (field: keyof CreateContactRequest, value: string | number | null) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
